@@ -46,7 +46,6 @@ export default function AdminPage() {
         
         if (userSnap.exists() && userSnap.data().tier === "ADMIN") {
           setIsAdmin(true);
-          // 실시간 연동을 위한 전역 설정값(market) 로드
           const docRef = doc(db, "settings", "market");
           const docSnap = await getDoc(docRef);
           if (docSnap.exists()) {
@@ -63,6 +62,7 @@ export default function AdminPage() {
         }
       } else {
         setIsAdmin(false);
+        window.location.href = "/login";
       }
       setLoading(false);
     });
@@ -98,8 +98,6 @@ export default function AdminPage() {
   const handleSaveSettings = async () => {
     setIsSaving(true);
     try {
-      // 🚀 'global' 대신 'market'이라는 이름으로 문서를 생성하여 저장합니다.
-      // 이 코드가 실행되면 파이어베이스 콘솔에 'market' 항목이 새로 나타납니다.
       await setDoc(doc(db, "settings", "market"), {
         diffPoint: Number(point),
         status: status,
@@ -117,83 +115,67 @@ export default function AdminPage() {
 
   return (
     <div style={{ minHeight: '100vh', backgroundColor: theme.bg, color: theme.text, width: '100vw', margin: 0, padding: 0 }}>
-      {/* 🚀 배포 성공 시 상단에 노란 띠가 나타납니다. */}
-      <div style={{ backgroundColor: '#FFD700', color: '#000', padding: '15px', fontSize: '20px', textAlign: 'center', fontWeight: 'bold' }}>
-          ✅ InvestLogic_v1 최신 소스 배포 성공 (2026-02-23)
+      {/* 🚀 상단 배포 확인 바 */}
+      <div style={{ backgroundColor: '#FFD700', color: '#000', padding: '12px', fontSize: '16px', textAlign: 'center', fontWeight: 'bold' }}>
+          ✅ InvestLogic V1 클린 리셋 및 13단계 엔진 설치 완료
       </div>
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px', fontFamily: '-apple-system, sans-serif' }}>
         
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 30 }}>
           <div>
-            <h1 style={{ color: theme.text, margin: 0, fontSize: 24 }}>⚙️ InvestLogic 어드민 센터</h1>
+            <h1 style={{ color: theme.text, margin: 0, fontSize: 24 }}>⚙️ 어드민 센터</h1>
             <p style={{ color: theme.subText, fontSize: 13, marginTop: 5 }}>전역 설정 및 회원 권한 관리</p>
           </div>
           <button onClick={() => window.location.href = '/'} style={{ padding: '8px 16px', backgroundColor: theme.card, color: theme.text, border: `1px solid ${theme.border}`, borderRadius: 6, cursor: 'pointer' }}>
-            돌아가기
+            홈으로 이동
           </button>
         </div>
 
-        {/* 1. 🚀 기획안 반영 시장 지표 설정 (입력창으로 교체 완료) */}
-        <div style={{ backgroundColor: theme.card, padding: 25, borderRadius: 12, border: `1px solid ${theme.border}`, marginBottom: 20 }}>
+        {/* 1. 시장 지표 제어 섹션 */}
+        <div style={{ backgroundColor: theme.card, padding: 25, borderRadius: 12, border: `1px solid ${theme.border}`, marginBottom: 25 }}>
           <h3 style={{ color: theme.text, marginTop: 0, marginBottom: 15, borderBottom: `1px solid ${theme.border}`, paddingBottom: 10 }}>📊 시장 상황 실시간 제어</h3>
           
           <div style={{ marginBottom: 20 }}>
-            <label style={{ display: 'block', fontSize: 12, color: theme.subText, marginBottom: 8 }}>NQ1! 변동 포인트 입력 (-1200 ~ 650)</label>
+            <label style={{ display: 'block', fontSize: 12, color: theme.subText, marginBottom: 8 }}>NQ1! 변동 포인트 입력 (-1500 ~ 1000)</label>
             <input 
               type="number" 
               value={point} 
               onChange={(e) => setPoint(Number(e.target.value))}
-              style={{ width: '100%', padding: '15px', borderRadius: 8, backgroundColor: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, fontSize: 18, fontWeight: 'bold' }}
-              placeholder="숫자를 입력하세요"
+              style={{ width: '100%', padding: '15px', borderRadius: 8, backgroundColor: theme.bg, color: theme.text, border: `1px solid ${theme.border}`, fontSize: 20, fontWeight: 'bold' }}
             />
           </div>
 
-          <div style={{ backgroundColor: theme.bg, padding: 15, borderRadius: 10, textAlign: 'center', marginBottom: 15 }}>
-             <div style={{ fontSize: 40, marginBottom: 5 }}>{emoji}</div>
-             <div style={{ fontSize: 16, fontWeight: 'bold', color: theme.primary }}>{status}</div>
-             <div style={{ fontSize: 11, color: theme.subText, marginTop: 5 }}>바늘 위치: {point}p 기준으로 자동 계산됨</div>
+          <div style={{ backgroundColor: theme.bg, padding: 20, borderRadius: 10, textAlign: 'center', marginBottom: 20 }}>
+             <div style={{ fontSize: 45, marginBottom: 5 }}>{emoji}</div>
+             <div style={{ fontSize: 18, fontWeight: 'bold', color: theme.primary }}>{status}</div>
+             <div style={{ fontSize: 12, color: theme.subText, marginTop: 5 }}>지수 {point}p 기준 자동 계산됨</div>
           </div>
 
           <button 
             onClick={handleSaveSettings} 
             disabled={isSaving}
-            style={{ width: '100%', padding: '15px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 'bold', cursor: 'pointer' }}
+            style={{ width: '100%', padding: '15px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 16, fontWeight: 'bold', cursor: 'pointer', opacity: isSaving ? 0.7 : 1 }}
           >
-            {isSaving ? "반영 중..." : "시장 지표 실시간 업데이트"}
+            {isSaving ? "저장 중..." : "시장 지표 실시간 업데이트"}
           </button>
         </div>
 
-          <div style={{ backgroundColor: theme.bg, padding: 15, borderRadius: 10, textAlign: 'center', marginBottom: 15 }}>
-             <div style={{ fontSize: 40, marginBottom: 5 }}>{emoji}</div>
-             <div style={{ fontSize: 16, fontWeight: 'bold', color: theme.primary }}>{status}</div>
-             <div style={{ fontSize: 11, color: theme.subText, marginTop: 5 }}>바늘 위치: {point}p 기준으로 자동 계산됨</div>
-          </div>
-
-          <button 
-            onClick={handleSaveSettings} 
-            disabled={isSaving}
-            style={{ width: '100%', padding: '15px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: 8, fontSize: 15, fontWeight: 'bold', cursor: 'pointer' }}
-          >
-            {isSaving ? "반영 중..." : "실시간 시장 지표 업데이트"}
-          </button>
-        </div>
-
-        {/* 2. 회원 등급 관리 */}
+        {/* 2. 회원 등급 관리 섹션 */}
         <div style={{ backgroundColor: theme.card, padding: 25, borderRadius: 12, border: `1px solid ${theme.border}` }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 15, borderBottom: `1px solid ${theme.border}`, paddingBottom: 10 }}>
-            <h3 style={{ color: theme.text, margin: 0 }}>👥 회원 등급 관리</h3>
+            <h3 style={{ color: theme.text, margin: 0 }}>👥 회원 관리</h3>
             <button onClick={fetchUserList} style={{ fontSize: 12, color: theme.primary, border: 'none', background: 'none', cursor: 'pointer' }}>🔄 새로고침</button>
           </div>
           
-          {isUserLoading ? <p>불러오는 중...</p> : (
+          {isUserLoading ? <p style={{textAlign:'center', padding:'20px'}}>불러오는 중...</p> : (
             <div style={{ overflowX: 'auto' }}>
               <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '13px' }}>
                 <thead>
                   <tr style={{ textAlign: 'left', borderBottom: `1px solid ${theme.border}`, color: theme.subText }}>
                     <th style={{ padding: '10px 5px' }}>이메일</th>
-                    <th style={{ padding: '10px 5px' }}>현재 등급</th>
-                    <th style={{ padding: '10px 5px', textAlign: 'right' }}>등급 변경</th>
+                    <th style={{ padding: '10px 5px' }}>등급</th>
+                    <th style={{ padding: '10px 5px', textAlign: 'right' }}>변경</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -229,7 +211,6 @@ export default function AdminPage() {
             </div>
           )}
         </div>
-
       </div>
     </div>
   );
