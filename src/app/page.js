@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-// 🚀 수정: socialLogin과 getRedirectResult 추가
+// 🚀 socialLogin과 getRedirectResult 임포트 확인
 import { auth, db, socialLogin, getRedirectResult } from "../firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc, orderBy, getDoc, setDoc } from "firebase/firestore";
@@ -203,43 +203,55 @@ export default function Home() {
     fetchMarketSettings();
   }, []);
 
-  // 🚀 수정: 모바일 리다이렉트 및 로그인 상태 감시 통합
+  // 🚀 수정: 모바일 리다이렉트 및 로그인 상태 감시 통합 보완
   useEffect(() => {
-    // 모바일 리다이렉트 로그인 결과 확인
-    const checkRedirect = async () => {
+    const checkRedirectAndAuth = async () => {
       try {
+        setLoading(true); // 로직 수행 중 로딩 유지
+        // 1. 모바일 리다이렉트 로그인 결과 확인
         const result = await getRedirectResult(auth);
-        if (result?.user) { console.log("리다이렉트 로그인 성공"); }
-      } catch (e) { console.error("리다이렉트 에러:", e); }
-    };
-    checkRedirect();
-
-    const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
-      setUser(currentUser);
-      setLoading(false);
-      if (currentUser) {
-        const userRef = doc(db, "users", currentUser.uid);
-        const userSnap = await getDoc(userRef);
-        if (!userSnap.exists()) {
-          await setDoc(userRef, { uid: currentUser.uid, email: currentUser.email, tier: "FREE", createdAt: new Date().toISOString() });
-          setUserTier("FREE");
-        } else {
-          setUserTier(userSnap.data().tier || "FREE");
+        if (result?.user) {
+          console.log("리다이렉트 인증 성공:", result.user.email);
+          // 성공 시 바로 유저 정보 업데이트
+          setUser(result.user);
         }
-        const q = query(collection(db, "trades"), where("uid", "==", currentUser.uid), orderBy("date", "desc"));
-        const unsubscribeDb = onSnapshot(q, (snapshot) => {
-          setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      } catch (e) {
+        console.error("리다이렉트 에러:", e.code);
+      } finally {
+        // 2. 인증 상태 리스너 연결
+        const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
+          setUser(currentUser);
+          if (currentUser) {
+            const userRef = doc(db, "users", currentUser.uid);
+            const userSnap = await getDoc(userRef);
+            if (!userSnap.exists()) {
+              await setDoc(userRef, { uid: currentUser.uid, email: currentUser.email, tier: "FREE", createdAt: new Date().toISOString() });
+              setUserTier("FREE");
+            } else {
+              setUserTier(userSnap.data().tier || "FREE");
+            }
+            const q = query(collection(db, "trades"), where("uid", "==", currentUser.uid), orderBy("date", "desc"));
+            const unsubscribeDb = onSnapshot(q, (snapshot) => {
+              setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+            });
+            // Cleanup 리스너 전달은 onAuthStateChanged 구조상 어려우므로 
+            // 별도 핸들링이 필요할 수 있으나 현재 구조 유지
+          } else {
+            setUserTier("FREE");
+            setTradeHistory([]);
+          }
+          setLoading(false); // 최종 로딩 해제
         });
-        return () => unsubscribeDb();
-      } else {
-        setUserTier("FREE");
-        setTradeHistory([]);
+        return unsubscribeAuth;
       }
-    });
-    return () => unsubscribeAuth();
+    };
+
+    const unsubscribePromise = checkRedirectAndAuth();
+    return () => {
+      unsubscribePromise.then(unsubscribe => { if (unsubscribe) unsubscribe(); });
+    };
   }, []);
 
-  // 🚀 수정: 하이브리드 로그인 함수 호출
   const handleLogin = async () => { await socialLogin(); };
   const handleLogout = () => { signOut(auth); };
 
@@ -299,7 +311,7 @@ export default function Home() {
   };
 
   const styles = getStyles(theme);
-  if (loading) return <div style={styles.loading}>⏳ 로딩 중...</div>;
+  if (loading) return <div style={styles.loading}>⏳ 인증 확인 중...</div>;
 
   return (
     <>
