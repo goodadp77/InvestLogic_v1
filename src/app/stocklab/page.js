@@ -1,11 +1,11 @@
 "use client";
 import { useState, useEffect } from "react";
-import { auth, db, provider } from "../../firebase"; // 경로 주의 (../../firebase)
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+// 🚀 수정: socialLogin과 getRedirectResult 추가, provider 제거
+import { auth, db, socialLogin, getRedirectResult } from "../../firebase"; 
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc } from "firebase/firestore";
 
-// --- [컴포넌트 1: 상단 네비게이션] ---
-// --- [컴포넌트 3: 상단 네비게이션 & 햄버거 메뉴] ---
+// --- [컴포넌트 1: 상단 네비게이션 & 햄버거 메뉴] ---
 const TopNav = ({ user, userTier, handleLogin, handleLogout, theme }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   return (
@@ -46,9 +46,17 @@ export default function StockLab() {
   const theme = { bg: "#F2F2F7", card: "#FFFFFF", text: "#000000", subText: "#6e6e73", border: "#d1d1d6", primary: "#0a84ff" };
 
   useEffect(() => {
-    // 배경색 적용 로직 유지
     document.body.style.backgroundColor = theme.bg;
     document.body.style.margin = "0";
+
+    // 🚀 모바일 리다이렉트 로그인 결과 확인 로직 추가
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) { console.log("리다이렉트 로그인 성공"); }
+      } catch (e) { console.error("리다이렉트 에러:", e); }
+    };
+    checkRedirect();
 
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
@@ -56,29 +64,26 @@ export default function StockLab() {
         const userRef = doc(db, "users", currentUser.uid);
         const userSnap = await getDoc(userRef);
         if (userSnap.exists()) {
-          // DB의 tier(FREE, PRO, ADMIN)를 가져와 권한을 결정합니다.
           setUserTier(userSnap.data().tier || "FREE");
         }
       }
       setLoading(false);
     });
     return () => unsubscribe();
-  }, [theme.bg]); // 의존성 배열을 이전과 동일하게 유지하여 에러 방지
+  }, [theme.bg]);
 
-  const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) {} };
+  // 🚀 수정: socialLogin 공통 함수 호출로 변경
+  const handleLogin = async () => { await socialLogin(); };
   const handleLogout = () => { signOut(auth); };
 
-  // 🔥 PRO 전용 노션 링크
   const notionStocksUrl = "https://www.notion.so/INVEST-LOGIC-LAB-30dd5cc573fe80b8a2b0e74def1b96df?source=copy_link";
-
-  // PRO 또는 ADMIN 등급인 경우만 콘텐츠 접근 허용
   const isPaidUser = userTier === "PRO" || userTier === "ADMIN";
 
   if (loading) return <div style={{ display:'flex', justifyContent:'center', alignItems:'center', height:'100vh', backgroundColor: theme.bg, color: theme.text }}>⏳ 권한 확인 중...</div>;
 
   return (
     <div style={{ minHeight: '100vh', fontFamily: '-apple-system, sans-serif', backgroundColor: theme.bg }}>
-      <TopNav user={user} handleLogin={handleLogin} handleLogout={handleLogout} theme={theme} />
+      <TopNav user={user} userTier={userTier} handleLogin={handleLogin} handleLogout={handleLogout} theme={theme} />
 
       <div style={{ maxWidth: '800px', margin: '0 auto', padding: '40px 20px' }}>
         <div style={{ textAlign: 'center', marginBottom: 40 }}>
@@ -86,9 +91,6 @@ export default function StockLab() {
             <p style={{ color: theme.subText, fontSize: 15, marginTop: 10 }}>위기 대응 시나리오와 기업 펀더멘털을 분석하는 전략 연구소</p>
         </div>
 
-        {/* ---------------------------------------------------------
-            🚩 1단계: 로그아웃 상태 (완전 잠금 + 로그인 유도)
-        --------------------------------------------------------- */}
         {!user ? (
             <div style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16, padding: '50px 20px', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
                 <div style={{ fontSize: 50, marginBottom: 20 }}>🔒</div>
@@ -103,9 +105,6 @@ export default function StockLab() {
             </div>
         ) : (
             <>
-                {/* ---------------------------------------------------------
-                    🚩 2단계: 로그인 완료 (FREE 등급) - PRO 업셀링 화면
-                --------------------------------------------------------- */}
                 {!isPaidUser ? (
                     <div style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16, padding: '40px 20px', textAlign: 'center', boxShadow: '0 10px 30px rgba(0,0,0,0.05)' }}>
                         <div style={{ fontSize: 50, marginBottom: 20 }}>💎</div>
@@ -125,14 +124,11 @@ export default function StockLab() {
                             </ul>
                         </div>
 
-                        <button onClick={() => alert('PRO 등급 결제 안내 페이지로 이동합니다.')} style={{ padding: '16px 40px', backgroundColor: '#6d28d9', color: 'white', border: 'none', borderRadius: '30px', fontWeight: 'bold', fontSize: 16, cursor: 'pointer' }}>
+                        <button onClick={() => window.location.href = '/pro-guide'} style={{ padding: '16px 40px', backgroundColor: '#6d28d9', color: 'white', border: 'none', borderRadius: '30px', fontWeight: 'bold', fontSize: 16, cursor: 'pointer' }}>
                             PRO 등급 활성화 (리스크 대응 강화)
                         </button>
                     </div>
                 ) : (
-                    /* ---------------------------------------------------------
-                        🚩 3단계: PRO 회원 (콘텐츠 완전 개방)
-                    --------------------------------------------------------- */
                     <div style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: 16, padding: '30px', boxShadow: '0 4px 12px rgba(0,0,0,0.05)' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 15, marginBottom: 20 }}>
                             <div style={{ fontSize: 30 }}>🏢</div>

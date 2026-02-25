@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { auth, provider, db } from "../firebase";
-import { signInWithPopup, signOut, onAuthStateChanged } from "firebase/auth";
+// 🚀 수정: socialLogin과 getRedirectResult 추가
+import { auth, db, socialLogin, getRedirectResult } from "../firebase";
+import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc, orderBy, getDoc, setDoc } from "firebase/firestore";
 
 // --- [컴포넌트 1: 시장 상황 게이지] ---
@@ -202,7 +203,17 @@ export default function Home() {
     fetchMarketSettings();
   }, []);
 
+  // 🚀 수정: 모바일 리다이렉트 및 로그인 상태 감시 통합
   useEffect(() => {
+    // 모바일 리다이렉트 로그인 결과 확인
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) { console.log("리다이렉트 로그인 성공"); }
+      } catch (e) { console.error("리다이렉트 에러:", e); }
+    };
+    checkRedirect();
+
     const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       setLoading(false);
@@ -228,9 +239,8 @@ export default function Home() {
     return () => unsubscribeAuth();
   }, []);
 
-  const handleLogin = async () => {
-    try { await signInWithPopup(auth, provider); } catch (e) { console.error("로그인 에러:", e); }
-  };
+  // 🚀 수정: 하이브리드 로그인 함수 호출
+  const handleLogin = async () => { await socialLogin(); };
   const handleLogout = () => { signOut(auth); };
 
   const getPlanData = () => {

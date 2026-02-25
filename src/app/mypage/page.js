@@ -1,7 +1,8 @@
 "use client";
 import { useState, useEffect } from "react";
-import { auth, db, provider } from "../../firebase"; 
-import { onAuthStateChanged, signInWithPopup, signOut } from "firebase/auth";
+// 🚀 수정: socialLogin과 getRedirectResult 추가, provider 제거
+import { auth, db, socialLogin, getRedirectResult } from "../../firebase"; 
+import { onAuthStateChanged, signOut } from "firebase/auth";
 import { doc, getDoc, collection, query, where, getDocs, orderBy, setDoc, serverTimestamp, onSnapshot } from "firebase/firestore";
 import { User, Shield, ListChecks, LogIn, Info, Zap, Clock, CheckCircle } from "lucide-react";
 
@@ -61,6 +62,15 @@ export default function MyPage() {
     darkModeMediaQuery.addEventListener('change', handler);
     document.body.style.backgroundColor = theme.bg;
 
+    // 🚀 모바일 리다이렉트 로그인 결과 확인 로직 추가
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result?.user) { console.log("리다이렉트 로그인 성공"); }
+      } catch (e) { console.error("리다이렉트 에러:", e); }
+    };
+    checkRedirect();
+
     const unsubscribe = onAuthStateChanged(auth, async (currentUser) => {
       setUser(currentUser);
       if (currentUser) {
@@ -109,7 +119,6 @@ export default function MyPage() {
       });
       alert("활성화 요청이 접수되었습니다. 관리자 승인 후 PRO 기능이 자동 활성화됩니다.");
     } catch (e) {
-      // 🚀 서버 보안 규칙(Rules)에 의해 거절된 경우 대응
       if (e.code === 'permission-denied') {
         alert("이미 PRO 등급이거나 현재 승인 절차가 진행 중입니다.");
       } else {
@@ -119,7 +128,8 @@ export default function MyPage() {
     }
   };
 
-  const handleLogin = async () => { try { await signInWithPopup(auth, provider); } catch (e) {} };
+  // 🚀 수정: socialLogin 공통 함수 호출로 변경
+  const handleLogin = async () => { await socialLogin(); };
   const handleLogout = () => { signOut(auth); window.location.href='/'; };
 
   const cardStyle = { backgroundColor: theme.card, borderRadius: '16px', padding: '25px', marginBottom: '20px', border: `1px solid ${theme.border}` };
@@ -159,8 +169,7 @@ export default function MyPage() {
               </div>
             </div>
 
-            {/* 2) [수정] PRO 기능 활성화 섹션 - 렌더링 조건 강화 */}
-            {/* 이미 PRO이거나 ADMIN인 경우 섹션 자체를 숨김 */}
+            {/* 2) PRO 기능 활성화 섹션 */}
             {userTier !== "PRO" && userTier !== "ADMIN" && (
               <div style={{ ...cardStyle, border: `1px solid ${proRequestStatus === 'pending' ? theme.border : theme.primary}` }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginBottom: '15px', fontSize: '17px', fontWeight: 'bold' }}>
