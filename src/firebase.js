@@ -11,9 +11,9 @@ import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
-  // 🚀 핵심 수정: 인증 도메인을 실제 서비스 주소로 일치시킵니다.
-  authDomain: "investlogicv1.vercel.app", 
-  projectId: "nasdaq-tamagotchi", // 프로젝트 ID는 기존 값 유지
+  // 🚀 404 에러 해결: 인앱 탈출 성공 확인 후, 인증 도메인을 다시 기본 주소로 복구합니다.
+  authDomain: "nasdaq-tamagotchi.firebaseapp.com", 
+  projectId: "nasdaq-tamagotchi", 
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
   appId: process.env.NEXT_PUBLIC_FIREBASE_APP_ID,
@@ -28,7 +28,7 @@ export const db = getFirestore(app);
 
 /**
  * 🚀 하이브리드 로그인 함수
- * 모바일(인앱 포함)은 리다이렉트, 데스크톱은 팝업 방식을 사용합니다.
+ * 인앱 탈출 로직이 이미 작동 중이므로, 외부 브라우저 환경에서 안정적으로 로그인됩니다.
  */
 export const socialLogin = async () => {
   const userAgent = navigator.userAgent.toLowerCase();
@@ -36,10 +36,10 @@ export const socialLogin = async () => {
 
   try {
     if (isMobile) {
-      // 모바일 환경은 세션 유지를 위해 리다이렉트 방식 권장
+      // 모바일 환경: 리다이렉트 방식 (외부 브라우저에서 실행됨)
       await signInWithRedirect(auth, provider);
     } else {
-      // 데스크톱 환경은 사용자 편의를 위해 팝업 방식 사용
+      // 데스크톱 환경: 팝업 방식
       await signInWithPopup(auth, provider);
     }
   } catch (error) {
