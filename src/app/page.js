@@ -203,22 +203,21 @@ export default function Home() {
     fetchMarketSettings();
   }, []);
 
-  // 🚀 수정: 모바일 리다이렉트 및 로그인 상태 감시 통합 보완
+  // 🚀 수정: 리다이렉트 성공 확률을 극대화한 인증 통합 로직
   useEffect(() => {
-    const checkRedirectAndAuth = async () => {
+    const initAuth = async () => {
       try {
-        setLoading(true); // 로직 수행 중 로딩 유지
-        // 1. 모바일 리다이렉트 로그인 결과 확인
+        setLoading(true);
+        // 1. 리다이렉트 결과 체크 (authDomain 일치 후 가장 핵심적인 로직)
         const result = await getRedirectResult(auth);
         if (result?.user) {
-          console.log("리다이렉트 인증 성공:", result.user.email);
-          // 성공 시 바로 유저 정보 업데이트
+          console.log("리다이렉트 인증 완료:", result.user.email);
           setUser(result.user);
         }
-      } catch (e) {
-        console.error("리다이렉트 에러:", e.code);
+      } catch (error) {
+        console.error("인증 로직 오류:", error.message);
       } finally {
-        // 2. 인증 상태 리스너 연결
+        // 2. 인증 상태 실시간 감시 (세션 유지)
         const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
           setUser(currentUser);
           if (currentUser) {
@@ -234,19 +233,18 @@ export default function Home() {
             const unsubscribeDb = onSnapshot(q, (snapshot) => {
               setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             });
-            // Cleanup 리스너 전달은 onAuthStateChanged 구조상 어려우므로 
-            // 별도 핸들링이 필요할 수 있으나 현재 구조 유지
+            return () => unsubscribeDb();
           } else {
             setUserTier("FREE");
             setTradeHistory([]);
           }
-          setLoading(false); // 최종 로딩 해제
+          setLoading(false);
         });
         return unsubscribeAuth;
       }
     };
 
-    const unsubscribePromise = checkRedirectAndAuth();
+    const unsubscribePromise = initAuth();
     return () => {
       unsubscribePromise.then(unsubscribe => { if (unsubscribe) unsubscribe(); });
     };
