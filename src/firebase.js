@@ -12,8 +12,7 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   /**
-   * 🚀 핵심 수정: 도메인 일치 작업
-   * vercel.json의 rewrite 설정과 짝을 이뤄 인앱 브라우저 보안을 통과합니다.
+   * 🚀 핵심: 도메인 일치 작업 (vercel.json의 rewrite와 세트)
    */
   authDomain: "investlogicv1.vercel.app", 
   projectId: "nasdaq-tamagotchi", 
@@ -27,30 +26,39 @@ const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
 export const auth = getAuth(app);
 export const provider = new GoogleAuthProvider(); 
+// 구글 계정 선택창이 항상 뜨도록 설정 (세션 꼬임 방지)
+provider.setCustomParameters({ prompt: 'select_account' }); 
+
 export const db = getFirestore(app);
 
 /**
- * 🚀 하이브리드 로그인 함수
- * 인앱 브라우저에서도 세션 유실 없이 로그인을 처리하도록 리다이렉트 방식을 사용합니다.
+ * 🚀 고도화된 하이브리드 로그인 함수
+ * 인앱 브라우저(네이버, 카카오 등)와 일반 브라우저를 정밀하게 구분합니다.
  */
 export const socialLogin = async () => {
   const userAgent = navigator.userAgent.toLowerCase();
+  
+  // 1. 인앱 브라우저 및 모바일 환경 정밀 감지
+  const isInApp = /naver|kakaotalk|line|daum|iphone|ipad|ipod|android/.test(userAgent);
   const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
 
   try {
-    if (isMobile) {
-      // 모바일 환경: 도메인 일치 + 리다이렉트 조합으로 보안 돌파
+    // 2. 인앱 브라우저이거나 모바일인 경우 무조건 리다이렉트 방식 사용
+    if (isInApp || isMobile) {
+      console.log("인앱/모바일 환경 감지: 리다이렉트 로그인 실행");
       await signInWithRedirect(auth, provider);
     } else {
-      // 데스크톱 환경: 팝업 방식 유지
+      // 3. 데스크톱 환경은 사용자 편의를 위해 팝업 방식 사용
       await signInWithPopup(auth, provider);
     }
   } catch (error) {
     console.error("Firebase Login Error:", error);
+    
+    // 구글 정책상 인앱 브라우저 차단 시 대응
     if (error.code === 'auth/disallowed-useragent') {
-      alert("이 브라우저에서는 구글 로그인이 제한됩니다. 크롬이나 사파리 앱을 사용해 주세요.");
+      alert("이 브라우저에서는 구글 로그인이 제한됩니다.\n\n오른쪽 상단 메뉴(⋮ 또는 ···)를 눌러\n'기본 브라우저로 열기' 또는 'Safari로 열기'를 선택해 주세요.");
     } else {
-      alert("로그인 중 오류가 발생했습니다. 브라우저 설정을 확인해 주세요.");
+      alert("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     }
   }
 };

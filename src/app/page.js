@@ -203,21 +203,29 @@ export default function Home() {
     fetchMarketSettings();
   }, []);
 
-  // 🚀 수정: 리다이렉트 성공 확률을 극대화한 인증 통합 로직
+  // 🚀 핵심 수정: 무한 로딩 방지 타임아웃 및 인증 최적화
   useEffect(() => {
     const initAuth = async () => {
+      setLoading(true);
+      
+      // 🚀 안전장치: 3.5초가 지나도 인증 결과가 없으면 강제로 로딩을 풉니다.
+      const timeoutId = setTimeout(() => {
+        setLoading(false);
+      }, 3500);
+
       try {
-        setLoading(true);
-        // 1. 리다이렉트 결과 체크 (authDomain 일치 후 가장 핵심적인 로직)
+        // 1. 리다이렉트 결과 확인
         const result = await getRedirectResult(auth);
         if (result?.user) {
-          console.log("리다이렉트 인증 완료:", result.user.email);
+          console.log("리다이렉트 인증 성공:", result.user.email);
           setUser(result.user);
         }
       } catch (error) {
-        console.error("인증 로직 오류:", error.message);
+        console.error("인증 처리 중 오류:", error.message);
       } finally {
-        // 2. 인증 상태 실시간 감시 (세션 유지)
+        clearTimeout(timeoutId); // 결과가 오면 타임아웃 취소
+        
+        // 2. 실시간 인증 상태 감시 (백그라운드 세션 연결)
         const unsubscribeAuth = onAuthStateChanged(auth, async (currentUser) => {
           setUser(currentUser);
           if (currentUser) {
@@ -233,12 +241,11 @@ export default function Home() {
             const unsubscribeDb = onSnapshot(q, (snapshot) => {
               setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             });
-            return () => unsubscribeDb();
           } else {
             setUserTier("FREE");
             setTradeHistory([]);
           }
-          setLoading(false);
+          setLoading(false); // 🚀 인증 확인 절차 완료
         });
         return unsubscribeAuth;
       }
