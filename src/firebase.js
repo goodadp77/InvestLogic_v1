@@ -12,9 +12,11 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   /**
-   * 🚀 핵심: 도메인 일치 작업 (vercel.json의 rewrite와 세트)
+   * 🚀 수정 사항: authDomain을 파이어베이스 기본 도메인으로 원복합니다.
+   * 이미 '승인된 도메인'에 Vercel 주소가 등록되어 있으므로, 
+   * 기본 도메인을 사용하는 것이 인증 세션 유지에 가장 안전합니다.
    */
-  authDomain: "investlogicv1.vercel.app", 
+  authDomain: "nasdaq-tamagotchi.firebaseapp.com", 
   projectId: "nasdaq-tamagotchi", 
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
