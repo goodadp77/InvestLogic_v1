@@ -1,6 +1,14 @@
 "use client";
 import { useEffect } from "react";
 
+// 🚀 [해결] 빌드 시 TradingView를 인식하지 못하는 에러 방지용 선언
+/** @ts-ignore */
+declare global {
+  interface Window {
+    TradingView: any;
+  }
+}
+
 const TradingViewChart = ({ theme }) => {
   const chartContainerId = "tradingview_widget_container";
   
