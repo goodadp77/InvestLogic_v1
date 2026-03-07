@@ -10,7 +10,13 @@ import FlowChart from "../components/flowchart";
 import { homeCss, getStyles } from "../components/homestyles";
 
 // 🚀 최신 계산 엔진 및 상수 임포트
-import { calculateSplitPlan, DEFAULT_DROPS } from "../lib/calcengine";
+import { 
+  getMarketRegime, 
+  getStockZone, 
+  getFinalRegime, 
+  calculateSplitPlan, 
+  DEFAULT_DROPS 
+} from "../lib/calcengine";
 
 // --- [컴포넌트 1: 시장 상황 게이지] ---
 const MarketGauge = ({ status, upRate, theme, userTier }) => {
@@ -227,6 +233,16 @@ export default function Home() {
     }
   }, [marketInfo.direction]);
 
+  // 🚀 [수정 지시 2번] 현재 종목 기준 zone 단일 계산
+  const currentStock = stockMaster[symbol];
+  const currentStockZone = currentStock
+    ? getStockZone(
+        Number(currentStock.currentPrice),
+        Number(currentStock.low36),
+        Number(currentStock.high36)
+      )
+    : null;
+
   const getStockZoneLabel = (zone) => {
     if (zone === "Z1") return "매수구간";
     if (zone === "Z2" || zone === "Z3") return "중립구간";
@@ -242,9 +258,9 @@ export default function Home() {
   };
 
   const getStockIndicatorMention = () => {
-    const stock = stockMaster[symbol];
-    if (!stock) return "-";
-    const zone = stock.zone;
+    const stock = currentStock;
+    if (!stock || !currentStockZone) return "-";
+    const zone = currentStockZone;
     const labelKey = getStockLabelKey(zone);
     const mentions = stock.stockIndicatorMentions;
     if (!labelKey || !mentions) return "-";
@@ -442,86 +458,70 @@ export default function Home() {
   };
 
   const getPlanData = () => {
-    const stock = stockMaster[symbol];
+    const stock = currentStock;
     const userPrice = Number(stockSettings[symbol]?.currentPrice);
     const masterPrice = Number(stock?.currentPrice);
     const basePrice = userPrice > 0 ? userPrice : (masterPrice > 0 ? masterPrice : 0);
     
-    if (basePrice <= 0 || !stock) return []; 
+    if (basePrice <= 0 || !stock || !currentStockZone) return []; 
 
-    let marketRegime = 4;
-    if (marketInfo.manualRegime) {
-      marketRegime = Number(marketInfo.manualRegime);
-    } else {
-      const R = (Number(marketInfo.currentPrice) / Number(marketInfo.low36)) - 1;
-      if (R <= 0.25) marketRegime = 1;
-      else if (R <= 0.60) marketRegime = 2;
-      else if (R <= 1.00) marketRegime = 3;
-      else marketRegime = 4;
-    }
+    const marketRegime = getMarketRegime(
+      marketInfo.low36,
+      marketInfo.currentPrice,
+      marketInfo.manualRegime
+    );
 
-    let stockRegime = 4;
-    const zoneMap = { "Z1": 1, "Z2": 2, "Z3": 3, "Z4": 4 };
-    if (stock.zone && zoneMap[stock.zone]) {
-      stockRegime = zoneMap[stock.zone];
-    } else {
-      const cur = Number(stock.currentPrice);
-      const low = Number(stock.low36);
-      const high = Number(stock.high36);
-      if (high > low) {
-        const P = (cur - low) / (high - low);
-        if (P <= 0.25) stockRegime = 1;
-        else if (P <= 0.60) stockRegime = 2;
-        else if (P <= 0.85) stockRegime = 3;
-        else stockRegime = 4;
-      }
-    }
+    const stockZone = currentStockZone;
 
-    const finalRegime = Math.max(marketRegime, stockRegime);
-    const proTemplates = {
-      1: [40, 60],
-      2: [30, 40, 30],
-      3: [25, 25, 20, 15, 15],
-      4: [4, 4, 4, 8, 8, 8, 12, 12, 20, 20]
-    };
-
-    let ratios = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10];
-    if (userTier === "PRO" || userTier === "ADMIN") {
-      ratios = proTemplates[finalRegime] || ratios;
-    }
+    const finalRegime = getFinalRegime(marketRegime, stockZone);
 
     const allocatedCapital = (totalCapital * (Number(stockSettings[symbol]?.percent || 100))) / 100;
     
-    let accumAmount = 0;
-    let accumQty = 0;
+    const template = calculateSplitPlan(userTier, finalRegime, allocatedCapital);
 
-    return ratios.map((ratio, index) => {
-      const turn = index + 1;
-      const amount = Math.floor(allocatedCapital * (ratio / 100));
+    return template.map((p, index) => {
       const dropRate = DEFAULT_DROPS[index] || 0;
       const targetPrice = basePrice * (1 - dropRate);
-      const qty = targetPrice > 0 ? amount / targetPrice : 0;
-      const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === turn && t.type === 'buy');
-      accumAmount += amount;
-      accumQty += qty;
+      
+      const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === p.turn && t.type === 'buy');
+      
+      let accumAmount = 0;
+      let accumQty = 0;
+      for (let i = 0; i <= index; i++) {
+        const itemAmount = template[i].amount;
+        const itemTargetPrice = basePrice * (1 - (DEFAULT_DROPS[i] || 0));
+        accumAmount += itemAmount;
+        accumQty += itemAmount / itemTargetPrice;
+      }
       const expectedAvg = accumQty > 0 ? accumAmount / accumQty : 0;
-      const prevExpectedAvg = (index > 0) ? ( (accumAmount - amount) / (accumQty - qty) ) : basePrice;
+
+      const prevExpectedAvg = (index > 0) ? ( (accumAmount - template[index].amount) / (accumQty - (template[index].amount / targetPrice)) ) : basePrice;
       const improvement = (index > 0 && prevExpectedAvg > 0) 
         ? ((prevExpectedAvg - expectedAvg) / prevExpectedAvg * 100).toFixed(1) 
         : 0;
 
       return { 
-        turn, ratio, amount, dropRate, targetPrice, expectedQty: qty, expectedAvg, improvement, isExecuted, finalRegime
+        turn: p.turn, 
+        ratio: p.ratio, 
+        amount: p.amount, 
+        dropRate, 
+        targetPrice, 
+        expectedAvg, 
+        improvement, 
+        isExecuted, 
+        finalRegime 
       };
     });
   };
 
   const buyPlan = getPlanData();
   const currentFinalRegime = buyPlan.length > 0 ? buyPlan[0].finalRegime : marketInfo.finalRegime;
+  
   const myTrades = tradeHistory.filter(t => t.symbol === symbol && t.type === 'buy');
   const realTotalInvested = myTrades.reduce((acc, cur) => acc + cur.amount, 0);
   const realTotalQty = myTrades.reduce((acc, cur) => acc + (cur.qty || 0), 0);
   const realAvgPrice = realTotalQty > 0 ? realTotalInvested / realTotalQty : 0;
+  
   const currentRound = myTrades.length > 0 ? Math.max(...myTrades.map(t => t.round)) : 0;
   const nextPlan = buyPlan.find(p => p.turn === currentRound + 1);
   const nextTargetPrice = nextPlan ? nextPlan.targetPrice : null;
@@ -532,7 +532,15 @@ export default function Home() {
     if (confirm(`${symbol} ${p.turn}회차 기록하시겠습니까?`)) {
       try { 
         await addDoc(collection(db, "trades"), { 
-          uid: user.uid, symbol: symbol, type: "buy", round: p.turn, amount: Math.floor(p.amount), price: Number(p.targetPrice.toFixed(2)), qty: Number((p.amount / p.targetPrice).toFixed(4)), date: new Date().toISOString(), memo: "자동등록됨" 
+          uid: user.uid, 
+          symbol: symbol, 
+          type: "buy", 
+          round: p.turn, 
+          amount: Math.floor(p.amount), 
+          price: Number(p.targetPrice.toFixed(2)), 
+          qty: Number((p.amount / p.targetPrice).toFixed(4)), 
+          date: new Date().toISOString(), 
+          memo: "자동등록됨" 
         }); 
       } catch (e) { alert("저장 실패"); }
     }
@@ -542,7 +550,10 @@ export default function Home() {
   const saveEdit = async (trade) => {
     if (!editPrice || isNaN(editPrice)) return alert("가격 확인 필요");
     const priceNum = Number(editPrice);
-    await updateDoc(doc(db, "trades", trade.id), { price: priceNum, qty: priceNum > 0 ? trade.amount / priceNum : 0 });
+    await updateDoc(doc(db, "trades", trade.id), { 
+      price: priceNum, 
+      qty: priceNum > 0 ? trade.amount / priceNum : 0 
+    });
     setEditingId(null);
   };
 
@@ -589,7 +600,7 @@ export default function Home() {
                   <span style={{ fontSize: "13px", fontWeight: "bold", color: theme.text }}>📊 종목지표</span>
                 </div>
                 <div style={{ fontSize: "12px", color: theme.text, lineHeight: "1.5" }}>
-                  <span style={{ fontWeight: "bold", color: theme.primary }}>{getStockZoneLabel(stockMaster[symbol]?.zone)}</span>
+                  <span style={{ fontWeight: "bold", color: theme.primary }}>{getStockZoneLabel(currentStockZone)}</span>
                   <span style={{ margin: "0 8px", color: theme.border }}>|</span>
                   <span>{getStockTrendText()}</span>
                   <span style={{ margin: "0 8px", color: theme.border }}>|</span>
