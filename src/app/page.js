@@ -26,9 +26,24 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
   };
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '10px 0', width: '100%', maxWidth: '100%', boxSizing: 'border-box' }}>
+    <div style={{
+      display: 'flex',
+      flexDirection: 'column',
+      alignItems: 'center',
+      margin: '10px 0',
+      width: '100%',
+      maxWidth: '100%',
+      boxSizing: 'border-box',
+      overflow: 'hidden'
+    }}>
       <div style={{ textAlign: 'center', marginBottom: 15, width: '100%' }}>
-        <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+        <div style={{
+          display: 'flex',
+          justifyContent: 'center',
+          alignItems: 'center',
+          gap: '8px',
+          flexWrap: 'wrap'
+        }}>
           <span style={{ fontSize: 13, fontWeight: 'bold', color: theme.text }}>오늘 시장 심리</span>
           <span style={{ backgroundColor: theme.bg, padding: '2px 8px', borderRadius: '12px', fontSize: 11, fontWeight: 'bold', color: '#0a84ff', border: `1px solid ${theme.border}`, whiteSpace: 'nowrap' }}>
             심리지수 {clampedRate}
@@ -40,7 +55,16 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
         <div style={{ fontSize: 11, color: theme.subText, marginTop: 4 }}>{getTodayDate()}</div>
       </div>
       <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
-        <svg width="240" height="130" viewBox="0 0 240 130" style={{ maxWidth: '100%', height: 'auto' }}>
+        <svg
+          width="240"
+          height="130"
+          viewBox="0 0 240 130"
+          style={{
+            maxWidth: "100%",
+            height: "auto",
+            display: "block"
+          }}
+        >
           <defs>
             <linearGradient id="gaugeGradient" x1="0%" y1="0%" x2="100%" y2="0%">
               <stop offset="0%" stopColor="#ff3b30" />
