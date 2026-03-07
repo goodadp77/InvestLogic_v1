@@ -1,48 +1,62 @@
-// src/lib/calcengine.js
+// [InvestLogic Final Engine Spec - 1단계: 엔진 코어]
 
-// 🚀 [4구간로직] 시장 및 종목 구간 판정
-export const getMarketRegime = (point, low36) => {
-  const p = Number(point) || 0;
-  const l = Number(low36) || 1;
-  const r = (p / l) - 1;
-  if (r <= 0.25) return "M1";
-  if (r <= 0.60) return "M2";
-  if (r <= 1.00) return "M3";
-  return "M4";
-};
-
-// 🚀 [계산기로직] 고정 템플릿 데이터
-const FIXED_TEMPLATES = {
-  M1: [40, 60],
-  M2: [30, 40, 30],
-  M3: [25, 25, 20, 15, 15],
-  M4: [4, 4, 4, 8, 8, 8, 12, 12, 20, 20],
-  REGULAR: [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]
-};
-
-const FIXED_DROPS = {
-  M1: [0, 0.10],
-  M2: [0, 0.08, 0.15],
-  M3: [0, 0.05, 0.12, 0.20, 0.30],
-  M4: [0, 0.05, 0.10, 0.15, 0.20, 0.28, 0.33, 0.38, 0.43, 0.48],
-  REGULAR: [0, 0.05, 0.10, 0.15, 0.20, 0.25, 0.30, 0.35, 0.40, 0.45]
-};
-
-// 🚀 [계산기로직] 메인 엔진 (유저 등급/모드별 분할 배열 생성)
-export const generateSplitPlan = (userTier, strategyMode, marketRegime, totalCapital, stockPercent, basePrice) => {
-  const isPro = userTier === "PRO" || userTier === "ADMIN";
-  const budget = (Number(totalCapital) * (Number(stockPercent) || 0)) / 100;
-  const startPrice = Number(basePrice) || 0;
+// 1. 시장 구간 판정 (R 수식)
+// R = (현재가 / 36개월 저점) - 1
+export const getMarketRegime = (low36, currentMarketPrice, manualRegime = null) => {
+  if (manualRegime && manualRegime !== "") return Number(manualRegime); // 수동 우선 원칙
   
-  // PRO이며 타이밍 모드일 때만 시장구간 연동, 그 외엔 적립식 10회
-  let key = (isPro && strategyMode === "TIMING") ? marketRegime : "REGULAR";
-  const ratios = FIXED_TEMPLATES[key] || FIXED_TEMPLATES.REGULAR;
-  const drops = FIXED_DROPS[key] || FIXED_DROPS.REGULAR;
+  const R = (Number(currentMarketPrice) / Number(low36)) - 1;
+  if (R < 0.25) return 1;
+  if (R < 0.60) return 2;
+  if (R < 1.00) return 3;
+  return 4;
+};
 
-  return ratios.map((ratio, i) => ({
-    turn: i + 1,
-    ratio,
-    targetPrice: startPrice * (1 - (drops[i] || 0)),
-    amount: Math.floor(budget * (ratio / 100))
+// 2. 종목 존 판정 (P 수식)
+// P = (현재가 - 저점) / (고점 - 저점)
+export const getStockZone = (current, low, high) => {
+  const pVal = (Number(current) - Number(low)) / (Number(high) - Number(low));
+  if (pVal <= 0.25) return "Z1";
+  if (pVal <= 0.60) return "Z2";
+  if (pVal <= 0.85) return "Z3";
+  return "Z4";
+};
+
+// 3. PRO 회원용 구간별 분할 템플릿 정의
+export const PRO_TEMPLATES = {
+  1: [40, 60],
+  2: [30, 40, 30],
+  3: [25, 25, 20, 15, 15],
+  4: [4, 4, 4, 8, 8, 8, 12, 12, 20, 20]
+};
+
+// 4. 하락률 템플릿 (10회차 기준 기본값 - 메인 연동용)
+export const DEFAULT_DROPS = [0, 0.05, 0.10, 0.15, 0.20, 0.28, 0.33, 0.38, 0.43, 0.48];
+
+// 5. 회원 등급별 비중 및 매수금액 계산 엔진
+export const calculateSplitPlan = (userTier, marketRegime, totalBudget) => {
+  let ratios = [];
+
+  // 회원 등급별 분기 로직
+  if (userTier === "PRO" || userTier === "ADMIN") {
+    // PRO회원: 시장 구간 기준 템플릿 자동 적용
+    ratios = PRO_TEMPLATES[marketRegime] || PRO_TEMPLATES[4]; 
+  } else {
+    // 비회원 및 일반회원: 10회 균등 (각 10%)
+    ratios = Array(10).fill(10);
+  }
+
+  // 비중 합계 100% 검증 로직 필수
+  const sumCheck = ratios.reduce((a, b) => a + b, 0);
+  if (Math.round(sumCheck) !== 100) {
+    console.error("Engine Error: Template sum is not 100%");
+    return [];
+  }
+
+  return ratios.map((ratio, index) => ({
+    turn: index + 1,
+    round: index + 1, // DB 저장용 키 일치 (turn = round)
+    ratio: ratio,
+    amount: Math.floor(totalBudget * (ratio / 100)) // 각 회차 투자금 계산
   }));
 };

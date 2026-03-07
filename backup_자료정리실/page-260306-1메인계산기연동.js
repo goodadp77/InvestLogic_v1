@@ -133,7 +133,7 @@ export default function Home() {
   const [userTier, setUserTier] = useState("FREE");
   const theme = { bg: "#F2F2F7", card: "#FFFFFF", text: "#000000", subText: "#6e6e73", border: "#d1d1d6", inputBg: "#F2F2F7", primary: "#0a84ff" };
 
-  // 🚀 리스너 관리를 위한 refs
+  // 🚀 [지침 1] 리스너 관리를 위한 refs
   const tradesUnsubRef = useRef(null);
   const stockSettingsUnsubRef = useRef(null);
   const authUnsubRef = useRef(null);
@@ -152,9 +152,6 @@ export default function Home() {
   const [marketStatus, setMarketStatus] = useState("중립");
   const [upRate, setUpRate] = useState(50);
   const [interpretation, setInterpretation] = useState(null);
-
-  // 🚀 Home state 추가
-  const [stockTrend, setStockTrend] = useState("down");
 
   useEffect(() => {
     if (typeof window !== "undefined") {
@@ -175,44 +172,7 @@ export default function Home() {
   const tabRefs = useRef({});
   const saveTimerRef = useRef(null); 
 
-  // 🚀 marketInfo.direction 변경 시 동기화
-  useEffect(() => {
-    if (marketInfo.direction === "up" || marketInfo.direction === "down") {
-      setStockTrend(marketInfo.direction);
-    }
-  }, [marketInfo.direction]);
-
-  // 🚀 helper 함수
-  const getStockZoneLabel = (zone) => {
-    if (zone === "Z1") return "매수구간";
-    if (zone === "Z2" || zone === "Z3") return "중립구간";
-    if (zone === "Z4") return "매도구간";
-    return "-";
-  };
-
-  const getStockLabelKey = (zone) => {
-    if (zone === "Z1") return "buy";
-    if (zone === "Z2" || zone === "Z3") return "neutral";
-    if (zone === "Z4") return "sell";
-    return null;
-  };
-
-  const getStockIndicatorMention = () => {
-    const stock = stockMaster[symbol];
-    if (!stock) return "-";
-    const zone = stock.zone;
-    const labelKey = getStockLabelKey(zone);
-    const mentions = stock.stockIndicatorMentions;
-    if (!labelKey || !mentions) return "-";
-    const mention = mentions[stockTrend]?.[labelKey];
-    return mention || "-";
-  };
-
-  const getStockTrendText = () => {
-    return stockTrend === "up" ? "상승추세" : "하락추세";
-  };
-
-  // 🚀 stockSettings 리스너 관리 및 에러 핸들러
+  // 🚀 [지침 1] stockSettings 리스너 관리 및 에러 핸들러
   useEffect(() => {
     if (!user) return;
     safeUnsub(stockSettingsUnsubRef);
@@ -245,10 +205,7 @@ export default function Home() {
   useEffect(() => {
     const stocksRef = collection(db, "stocks");
     const unsubscribeStocks = onSnapshot(stocksRef, (snapshot) => {
-      const stockDocs = snapshot.docs
-        .map(doc => ({ id: doc.id, ...doc.data() }))
-        .filter(data => data.enabled !== false);
-
+      const stockDocs = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() }));
       stockDocs.sort((a, b) => {
         const indexA = a.index !== undefined && a.index !== null ? Number(a.index) : 9999;
         const indexB = b.index !== undefined && b.index !== null ? Number(b.index) : 9999;
@@ -310,6 +267,7 @@ export default function Home() {
         console.error("인증 처리 중 오류:", error.message);
       } finally {
         clearTimeout(timeoutId);
+        // 🚀 [지침 1] onAuthStateChanged 리스너 관리
         authUnsubRef.current = onAuthStateChanged(auth, async (currentUser) => {
           setUser(currentUser);
           if (currentUser) {
@@ -364,6 +322,7 @@ export default function Home() {
 
   const handleLogin = async () => { await socialLogin(); };
 
+  // 🚀 [지침 1] handleLogout 함수 교체 (순서 및 가드 보장)
   const handleLogout = async () => {
     ignorePermRef.current = true;
     safeUnsub(tradesUnsubRef);
@@ -372,113 +331,31 @@ export default function Home() {
     setTimeout(() => { ignorePermRef.current = false; }, 1000);
   };
 
-  // 🚀 [STEP 4 & 5 수정] 평단 계산 엔진 정합성 통일
   const getPlanData = () => {
-    const stock = stockMaster[symbol];
     const userPrice = Number(stockSettings[symbol]?.currentPrice);
-    const masterPrice = Number(stock?.currentPrice);
+    const masterPrice = Number(stockMaster[symbol]?.currentPrice);
     const basePrice = userPrice > 0 ? userPrice : (masterPrice > 0 ? masterPrice : 0);
-    
-    if (basePrice <= 0 || !stock) return []; 
-
-    // A. 시장구간(Market Regime) 계산
-    let marketRegime = 4;
-    if (marketInfo.manualRegime) {
-      marketRegime = Number(marketInfo.manualRegime);
-    } else {
-      const R = (Number(marketInfo.currentPrice) / Number(marketInfo.low36)) - 1;
-      if (R <= 0.25) marketRegime = 1;
-      else if (R <= 0.60) marketRegime = 2;
-      else if (R <= 1.00) marketRegime = 3;
-      else marketRegime = 4;
-    }
-
-    // B. 종목구간(Stock Regime) 계산
-    let stockRegime = 4;
-    const zoneMap = { "Z1": 1, "Z2": 2, "Z3": 3, "Z4": 4 };
-    if (stock.zone && zoneMap[stock.zone]) {
-      stockRegime = zoneMap[stock.zone];
-    } else {
-      const cur = Number(stock.currentPrice);
-      const low = Number(stock.low36);
-      const high = Number(stock.high36);
-      if (high > low) {
-        const P = (cur - low) / (high - low);
-        if (P <= 0.25) stockRegime = 1;
-        else if (P <= 0.60) stockRegime = 2;
-        else if (P <= 0.85) stockRegime = 3;
-        else stockRegime = 4;
-      }
-    }
-
-    // C. 최종구간(Final Regime) 결정
-    const finalRegime = Math.max(marketRegime, stockRegime);
-
-    // D. 분할 템플릿 정의
-    const proTemplates = {
-      1: [40, 60],
-      2: [30, 40, 30],
-      3: [25, 25, 20, 15, 15],
-      4: [4, 4, 4, 8, 8, 8, 12, 12, 20, 20]
-    };
-
-    let ratios = [10, 10, 10, 10, 10, 10, 10, 10, 10, 10]; // 기본 (비회원/FREE)
-    if (userTier === "PRO" || userTier === "ADMIN") {
-      ratios = proTemplates[finalRegime] || ratios;
-    }
-
-    const allocatedCapital = (totalCapital * (Number(stockSettings[symbol]?.percent || 100))) / 100;
-    
-    // 🚀 엔진 기준 누적 계산 초기화
-    let accumAmount = 0;
-    let accumQty = 0;
-
-    return ratios.map((ratio, index) => {
-      const turn = index + 1;
-      const amount = Math.floor(allocatedCapital * (ratio / 100));
+    if (basePrice <= 0) return []; 
+    const template = calculateSplitPlan(userTier, marketInfo.finalRegime, (totalCapital * Number(stockSettings[symbol]?.percent || 100)) / 100);
+    let accumAmount = 0; let accumQty = 0;
+    return template.map((item, index) => {
       const dropRate = DEFAULT_DROPS[index] || 0;
       const targetPrice = basePrice * (1 - dropRate);
-      const qty = targetPrice > 0 ? amount / targetPrice : 0;
-      
-      // 실행 여부 판단
-      const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === turn && t.type === 'buy');
-      
-      // 🚀 엔진 기준 예상 평단 계산 (accumAmount / accumQty)
-      accumAmount += amount;
-      accumQty += qty;
-      const expectedAvg = accumQty > 0 ? accumAmount / accumQty : 0;
-
-      // 개선도 계산 (이전 회차 예상 평단 대비)
-      const prevExpectedAvg = (index > 0) ? ( (accumAmount - amount) / (accumQty - qty) ) : basePrice;
-      const improvement = (index > 0 && prevExpectedAvg > 0) 
-        ? ((prevExpectedAvg - expectedAvg) / prevExpectedAvg * 100).toFixed(1) 
-        : 0;
-
-      return { 
-        turn,
-        ratio,
-        amount,
-        dropRate, 
-        targetPrice, 
-        expectedQty: qty, 
-        expectedAvg, // 엔진 기준 예상 평단
-        improvement, 
-        isExecuted,
-        finalRegime
-      };
+      const qty = targetPrice > 0 ? item.amount / targetPrice : 0;
+      const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === item.turn && t.type === 'buy');
+      const prevAvgPrice = accumQty > 0 ? accumAmount / accumQty : basePrice;
+      accumAmount += item.amount; accumQty += qty;
+      const avgPrice = accumQty > 0 ? accumAmount / accumQty : 0;
+      const improvement = (index > 0 && prevAvgPrice > 0 && avgPrice > 0) ? ((prevAvgPrice - avgPrice) / prevAvgPrice * 100).toFixed(1) : 0;
+      return { ...item, dropRate, targetPrice, expectedQty: qty, expectedAvg: avgPrice, improvement, isExecuted };
     });
   };
 
   const buyPlan = getPlanData();
-  const currentFinalRegime = buyPlan.length > 0 ? buyPlan[0].finalRegime : marketInfo.finalRegime;
-  
   const myTrades = tradeHistory.filter(t => t.symbol === symbol && t.type === 'buy');
   const realTotalInvested = myTrades.reduce((acc, cur) => acc + cur.amount, 0);
   const realTotalQty = myTrades.reduce((acc, cur) => acc + (cur.qty || 0), 0);
-  
-  // 🚀 실제 평단 계산 (실제 투자금 / 실제 수량)
   const realAvgPrice = realTotalQty > 0 ? realTotalInvested / realTotalQty : 0;
-  
   const currentRound = myTrades.length > 0 ? Math.max(...myTrades.map(t => t.round)) : 0;
   const nextPlan = buyPlan.find(p => p.turn === currentRound + 1);
   const nextTargetPrice = nextPlan ? nextPlan.targetPrice : null;
@@ -489,15 +366,9 @@ export default function Home() {
     if (confirm(`${symbol} ${p.turn}회차 기록하시겠습니까?`)) {
       try { 
         await addDoc(collection(db, "trades"), { 
-          uid: user.uid, 
-          symbol: symbol, 
-          type: "buy", 
-          round: p.turn, 
-          amount: Math.floor(p.amount), 
-          price: Number(p.targetPrice.toFixed(2)), 
-          qty: Number((p.amount / p.targetPrice).toFixed(4)), 
-          date: new Date().toISOString(), 
-          memo: "자동등록됨" 
+          uid: user.uid, symbol: symbol, type: "buy", round: p.round ?? p.turn, amount: Math.floor(p.amount), 
+          price: Number(p.targetPrice.toFixed(2)), qty: Number((p.amount / p.targetPrice).toFixed(4)), 
+          date: new Date().toISOString(), memo: "자동등록됨" 
         }); 
       } catch (e) { alert("저장 실패"); }
     }
@@ -506,11 +377,7 @@ export default function Home() {
   const deleteTrade = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(db, "trades", id)); };
   const saveEdit = async (trade) => {
     if (!editPrice || isNaN(editPrice)) return alert("가격 확인 필요");
-    const priceNum = Number(editPrice);
-    await updateDoc(doc(db, "trades", trade.id), { 
-      price: priceNum, 
-      qty: priceNum > 0 ? trade.amount / priceNum : 0 
-    });
+    await updateDoc(doc(db, "trades", trade.id), { price: Number(editPrice), qty: Number(editPrice) > 0 ? trade.amount / Number(editPrice) : 0 });
     setEditingId(null);
   };
 
@@ -551,21 +418,6 @@ export default function Home() {
             </div>
           </div>
           <div style={styles.section}>
-            {isProUser && (
-              <div style={{ marginBottom: "15px", padding: "12px", backgroundColor: theme.bg, borderRadius: "10px", border: `1px solid ${theme.border}` }}>
-                <div style={{ marginBottom: "6px" }}>
-                  <span style={{ fontSize: "13px", fontWeight: "bold", color: theme.text }}>📊 종목지표</span>
-                </div>
-                <div style={{ fontSize: "12px", color: theme.text, lineHeight: "1.5" }}>
-                  <span style={{ fontWeight: "bold", color: theme.primary }}>{getStockZoneLabel(stockMaster[symbol]?.zone)}</span>
-                  <span style={{ margin: "0 8px", color: theme.border }}>|</span>
-                  <span>{getStockTrendText()}</span>
-                  <span style={{ margin: "0 8px", color: theme.border }}>|</span>
-                  <span style={{ color: theme.subText }}>{getStockIndicatorMention()}</span>
-                </div>
-              </div>
-            )}
-
             <div style={styles.tabContainer}>
               {stocks.map((t) => (
                 <button key={t} ref={el => tabRefs.current[t] = el} onClick={() => handleSymbolChange(t)} style={symbol === t ? styles.activeTab : styles.tab}>{t}</button>
@@ -586,7 +438,7 @@ export default function Home() {
             </div>
             <div style={{...styles.controlItem, marginTop:10}}>
               <label style={{color: theme.text, fontSize: 11}}>현재 기준 가격 (Start Price)</label>
-              <input type="text" value={stockSettings[symbol]?.currentPrice || ""} onChange={(e) => updateStockSetting('currentPrice', e.target.value)} style={styles.fullInput} placeholder={`관리자 기준가: ${stockMaster[symbol]?.currentPrice || 0}`} />
+              <input type="text" value={stockSettings[symbol]?.currentPrice || ""} onChange={(e) => updateStockSetting('currentPrice', e.target.value)} style={styles.fullInput} placeholder="미입력 시 어드민 기준가 적용" />
             </div>
           </div>
         </div>
@@ -600,7 +452,7 @@ export default function Home() {
                 <div style={{textAlign: 'center'}}><div style={{color: theme.subText, marginBottom: 2}}>누적 평단가</div><div style={{fontWeight: 'bold', color: '#30d158'}}>{!user ? "-" : (realAvgPrice > 0 ? `$${realAvgPrice.toLocaleString(undefined, {maximumFractionDigits:2})}` : "-")}</div></div>
                 <div style={{textAlign: 'center'}}><div style={{color: theme.subText, marginBottom: 2}}>다음 진입가</div><div style={{fontWeight: 'bold', color: '#ff453a'}}>{!user ? "-" : (nextTargetPrice > 0 ? `$${nextTargetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}` : "대기")}</div></div>
               </div>
-              <div style={{...styles.sectionHeader, marginBottom: 10}}><h3 style={{color: theme.text}}>📉 매수 플랜 상세 (최종 {currentFinalRegime}구간 적용)</h3></div>
+              <div style={{...styles.sectionHeader, marginBottom: 10}}><h3 style={{color: theme.text}}>📉 매수 플랜 상세 (시장 {marketInfo.finalRegime}구간 적용)</h3></div>
               <div style={styles.tableScroll}>
                 <div style={{ position: 'relative' }}>
                   <div style={{ ...styles.tableHeader, display: 'flex', width: '100%' }}><div style={{width:40}}>실행</div><div style={{width:50}}>회차</div><div style={{width:60}}>하락%</div><div style={{width:80, color:'#81b0ff'}}>목표가</div><div style={{width:50}}>비중</div><div style={{width:100, textAlign:'right'}}>매수금액</div><div style={{flex:1, textAlign:'right', paddingRight: 5, color: theme.subText}}>예상평단</div></div>
@@ -621,33 +473,17 @@ export default function Home() {
                 </div>
               </div>
               <div style={styles.totalBar}><span style={{color: theme.text}}>총 실제 매수 운영금</span><span style={{ fontSize: 18, color: '#30d158', fontWeight: 'bold' }}>{realTotalInvested.toLocaleString()} 원</span></div>
-              
-              <div
-                style={{
-                  textAlign: "left",
-                  fontSize: 12,
-                  fontWeight: 600,
-                  color: theme.text,
-                  backgroundColor: theme.bg,
-                  padding: "12px 16px",
-                  borderRadius: 8,
-                  marginTop: 30,
-                  border: `1px solid ${theme.border}`,
-                  lineHeight: "1.6",
-                }}
-              >
+              <div style={{ textAlign: 'left', fontSize: 12, fontWeight: 'bold', color: '#166534', backgroundColor: '#dcfce7', padding: '12px 16px', borderRadius: 8, marginTop: 30, border: '1px solid #bbf7d0', lineHeight: '1.6' }}>
                 💡 하락장에서 누적 평단가를 최대 60% 이상 낮추도록 설계되었으며<br/>
-                <span style={{ color: theme.subText, fontWeight: 500 }}>
-                  💡 상승장에서는 전략적으로 투자 비중을 확대하도록 설계된 시스템입니다.
-                </span>
+                💡 상승장에서는 전략적으로 투자 비중을 확대하도록 설계된 시스템입니다.
               </div>
             </div>
           )}
           <div style={styles.section}>
             <div style={styles.sectionHeader}><h3 style={{color: theme.text}}>💰 {symbol} 실제 매수 기록</h3></div>
             {!user && (
-              <div style={{ background: '#0B1220', border: '1px solid #1F2A37', color: '#E5E7EB', borderRadius: '12px', padding: '14px 16px', textAlign: 'center', fontSize: '13px', marginBottom: '15px', boxShadow: "0 8px 24px rgba(0,0,0,0.35)" }}>
-                <span style={{ color: '#9CA3AF' }}>로그인 후 매수 기록 저장 및 투자 추적 기능이 활성화됩니다.</span>
+              <div style={{ background: '#0F172A', border: '1px solid #1F2937', color: '#9CA3AF', borderRadius: '12px', padding: '14px', textAlign: 'center', fontSize: '13px', marginBottom: '15px' }}>
+                로그인 후 매수 기록 저장 및 투자 추적 기능이 활성화됩니다.
               </div>
             )}
             {myTrades.map((trade) => (

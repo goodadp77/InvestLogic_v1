@@ -372,7 +372,7 @@ export default function Home() {
     setTimeout(() => { ignorePermRef.current = false; }, 1000);
   };
 
-  // 🚀 [STEP 4 & 5 수정] 평단 계산 엔진 정합성 통일
+  // 🚀 [STEP 4 수정] Final Regime = max(Market Regime, Stock Regime) 로직 적용
   const getPlanData = () => {
     const stock = stockMaster[symbol];
     const userPrice = Number(stockSettings[symbol]?.currentPrice);
@@ -414,7 +414,7 @@ export default function Home() {
     // C. 최종구간(Final Regime) 결정
     const finalRegime = Math.max(marketRegime, stockRegime);
 
-    // D. 분할 템플릿 정의
+    // D. 분할 템플릿 정의 (PRO 전용)
     const proTemplates = {
       1: [40, 60],
       2: [30, 40, 30],
@@ -428,8 +428,6 @@ export default function Home() {
     }
 
     const allocatedCapital = (totalCapital * (Number(stockSettings[symbol]?.percent || 100))) / 100;
-    
-    // 🚀 엔진 기준 누적 계산 초기화
     let accumAmount = 0;
     let accumQty = 0;
 
@@ -439,19 +437,15 @@ export default function Home() {
       const dropRate = DEFAULT_DROPS[index] || 0;
       const targetPrice = basePrice * (1 - dropRate);
       const qty = targetPrice > 0 ? amount / targetPrice : 0;
-      
-      // 실행 여부 판단
       const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === turn && t.type === 'buy');
       
-      // 🚀 엔진 기준 예상 평단 계산 (accumAmount / accumQty)
+      const prevAvgPrice = accumQty > 0 ? accumAmount / accumQty : basePrice;
       accumAmount += amount;
       accumQty += qty;
-      const expectedAvg = accumQty > 0 ? accumAmount / accumQty : 0;
-
-      // 개선도 계산 (이전 회차 예상 평단 대비)
-      const prevExpectedAvg = (index > 0) ? ( (accumAmount - amount) / (accumQty - qty) ) : basePrice;
-      const improvement = (index > 0 && prevExpectedAvg > 0) 
-        ? ((prevExpectedAvg - expectedAvg) / prevExpectedAvg * 100).toFixed(1) 
+      
+      const avgPrice = accumQty > 0 ? accumAmount / accumQty : 0;
+      const improvement = (index > 0 && prevAvgPrice > 0 && avgPrice > 0) 
+        ? ((prevAvgPrice - avgPrice) / prevAvgPrice * 100).toFixed(1) 
         : 0;
 
       return { 
@@ -461,10 +455,10 @@ export default function Home() {
         dropRate, 
         targetPrice, 
         expectedQty: qty, 
-        expectedAvg, // 엔진 기준 예상 평단
+        expectedAvg: avgPrice, 
         improvement, 
         isExecuted,
-        finalRegime
+        finalRegime // 제목 표시용 데이터 포함
       };
     });
   };
@@ -475,11 +469,9 @@ export default function Home() {
   const myTrades = tradeHistory.filter(t => t.symbol === symbol && t.type === 'buy');
   const realTotalInvested = myTrades.reduce((acc, cur) => acc + cur.amount, 0);
   const realTotalQty = myTrades.reduce((acc, cur) => acc + (cur.qty || 0), 0);
-  
-  // 🚀 실제 평단 계산 (실제 투자금 / 실제 수량)
   const realAvgPrice = realTotalQty > 0 ? realTotalInvested / realTotalQty : 0;
-  
   const currentRound = myTrades.length > 0 ? Math.max(...myTrades.map(t => t.round)) : 0;
+  
   const nextPlan = buyPlan.find(p => p.turn === currentRound + 1);
   const nextTargetPrice = nextPlan ? nextPlan.targetPrice : null;
 
@@ -489,15 +481,9 @@ export default function Home() {
     if (confirm(`${symbol} ${p.turn}회차 기록하시겠습니까?`)) {
       try { 
         await addDoc(collection(db, "trades"), { 
-          uid: user.uid, 
-          symbol: symbol, 
-          type: "buy", 
-          round: p.turn, 
-          amount: Math.floor(p.amount), 
-          price: Number(p.targetPrice.toFixed(2)), 
-          qty: Number((p.amount / p.targetPrice).toFixed(4)), 
-          date: new Date().toISOString(), 
-          memo: "자동등록됨" 
+          uid: user.uid, symbol: symbol, type: "buy", round: p.turn, amount: Math.floor(p.amount), 
+          price: Number(p.targetPrice.toFixed(2)), qty: Number((p.amount / p.targetPrice).toFixed(4)), 
+          date: new Date().toISOString(), memo: "자동등록됨" 
         }); 
       } catch (e) { alert("저장 실패"); }
     }
@@ -506,11 +492,7 @@ export default function Home() {
   const deleteTrade = async (id) => { if(confirm("삭제?")) await deleteDoc(doc(db, "trades", id)); };
   const saveEdit = async (trade) => {
     if (!editPrice || isNaN(editPrice)) return alert("가격 확인 필요");
-    const priceNum = Number(editPrice);
-    await updateDoc(doc(db, "trades", trade.id), { 
-      price: priceNum, 
-      qty: priceNum > 0 ? trade.amount / priceNum : 0 
-    });
+    await updateDoc(doc(db, "trades", trade.id), { price: Number(editPrice), qty: Number(editPrice) > 0 ? trade.amount / Number(editPrice) : 0 });
     setEditingId(null);
   };
 

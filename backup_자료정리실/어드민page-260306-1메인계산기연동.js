@@ -1,5 +1,5 @@
 "use client";
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect } from "react";
 import { auth, db } from "../../firebase";
 import { onAuthStateChanged } from "firebase/auth";
 import { 
@@ -31,15 +31,6 @@ export default function AdminPage() {
 
   const [editingId, setEditingId] = useState(null);
   const [editValues, setEditValues] = useState({});
-
-  // 리스너 관리를 위한 refs 추가
-  const marketSettingsUnsubRef = useRef(null);
-  const marketInterpretationUnsubRef = useRef(null);
-  const ignorePermRef = useRef(false);
-
-  const safeUnsub = (ref) => {
-    try { if (ref.current) { ref.current(); ref.current = null; } } catch (e) {}
-  };
 
   const theme = !isDarkMode ? {
     bg: "#F2F2F7", card: "#FFFFFF", text: "#1C1C1E", subText: "#636366", border: "#D1D1D6", primary: "#007AFF"
@@ -75,25 +66,8 @@ export default function AdminPage() {
         
         if (userSnap.exists() && userSnap.data().tier === "ADMIN") {
           setIsAdmin(true);
-
-          // marketSettings 리스너: error 콜백 추가
-          safeUnsub(marketSettingsUnsubRef);
-          marketSettingsUnsubRef.current = onSnapshot(doc(db, "settings", "market"), (d) => {
-            if (d.exists()) setMarketData(prev => ({ ...prev, ...d.data() }));
-          }, (err) => {
-            if (err?.code === "permission-denied" && ignorePermRef.current) return;
-            console.error(err);
-          });
-
-          // marketInterpretation 리스너: error 콜백 추가
-          safeUnsub(marketInterpretationUnsubRef);
-          marketInterpretationUnsubRef.current = onSnapshot(doc(db, "marketInterpretation", "current"), (d) => {
-            if (d.exists()) setInterpretation(d.data());
-          }, (err) => {
-            if (err?.code === "permission-denied" && ignorePermRef.current) return;
-            console.error(err);
-          });
-
+          onSnapshot(doc(db, "settings", "market"), (d) => d.exists() && setMarketData(prev => ({ ...prev, ...d.data() })));
+          onSnapshot(doc(db, "marketInterpretation", "current"), (d) => d.exists() && setInterpretation(d.data()));
           onSnapshot(collection(db, "stocks"), (snap) => {
             const list = snap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
             list.sort((a, b) => (Number(a.index) || 999) - (Number(b.index) || 999));
@@ -121,31 +95,21 @@ export default function AdminPage() {
         } else window.location.href = "/";
       } else window.location.href = "/";
     });
-    return () => { 
-      unsubscribeAuth(); 
-      darkModeMediaQuery.removeEventListener('change', handler); 
-      safeUnsub(marketSettingsUnsubRef);
-      safeUnsub(marketInterpretationUnsubRef);
-    };
+    return () => { unsubscribeAuth(); darkModeMediaQuery.removeEventListener('change', handler); };
   }, []);
 
   const handleAddStock = async () => {
     if (!newStock.symbol) return alert("티커 입력 필수");
     const zone = getStockZone(newStock.currentPrice || 0, newStock.low36 || 0, newStock.high36 || 0);
     await addDoc(collection(db, "stocks"), {
-      ...newStock, symbol: newStock.symbol.toUpperCase(), zone, 
+      ...newStock, 
+      symbol: newStock.symbol.toUpperCase(), 
+      name: newStock.name, 
+      zone, 
       enabled: true,
       stockIndicatorMentions: {
-        up: {
-          buy: "저점 반등 진행",
-          neutral: "상승 흐름 유지",
-          sell: "상승 과열 구간"
-        },
-        down: {
-          buy: "저점 테스트 진행",
-          neutral: "하락 흐름 유지",
-          sell: "하락 전환 진행"
-        }
+        up: { buy: "", neutral: "", sell: "" },
+        down: { buy: "", neutral: "", sell: "" }
       },
       currentPrice: Number(newStock.currentPrice) || 0,
       low36: Number(newStock.low36) || 0,
@@ -160,7 +124,7 @@ export default function AdminPage() {
 
     // 🚀 [지침 준수] 평면형 구조를 up/down 계층형 구조로 자동 변환 로직 적용
     let mentions = stock.stockIndicatorMentions;
-    if (!mentions || (!mentions.up && !mentions.down)) {
+    if (!mentions || !mentions.up) {
       const flatBuy = stock.stockIndicatorMentions?.buy || "";
       const flatNeutral = stock.stockIndicatorMentions?.neutral || "";
       const flatSell = stock.stockIndicatorMentions?.sell || "";
@@ -231,7 +195,7 @@ export default function AdminPage() {
       <div style={{ maxWidth: '800px', margin: '0 auto' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '30px' }}>
           <h1 style={{ fontSize: '24px', fontWeight: '800' }}>⚙️ 어드민 센터</h1>
-          <button onClick={() => window.location.href = '/'} style={{ padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', backgroundColor: theme.card, color: theme.text, border: `1px solid ${theme.border}`, fontWeight: 700 }}><ArrowLeft size={16} /> 나가기</button>
+          <button onClick={() => window.location.href = '/'} style={{ padding: '8px 16px', borderRadius: '8px', cursor: 'pointer', backgroundColor: theme.card, color: theme.text, border: `1px solid ${theme.border}`, display: 'flex', alignItems: 'center', gap: '5px' }}><ArrowLeft size={16} /> 나가기</button>
         </div>
 
         {/* [1] 종목 마스터 관리 */}
@@ -244,8 +208,8 @@ export default function AdminPage() {
             <div><label style={{ fontSize: '11px', color: theme.subText }}>현재가</label><input type="number" value={newStock.currentPrice} onChange={e => setNewStock({...newStock, currentPrice: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text }} /></div>
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '10px' }}>
-            <div><label style={{ fontSize: '11px', color: theme.subText }}>36개월 저점</label><input type="number" value={newStock.low36} onChange={e => setNewStock({...newStock, low36: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text }} /></div>
-            <div><label style={{ fontSize: '11px', color: theme.subText }}>36개월 고점</label><input type="number" value={newStock.high36} onChange={e => setNewStock({...newStock, high36: e.target.value})} style={{ width: '100%', padding: '12px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text }} /></div>
+            <div><label style={{ fontSize: '11px', color: theme.subText }}>36개월 저점</label><input type="number" value={newStock.low36} onChange={e => setNewStock({...newStock, low36: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text }} /></div>
+            <div><label style={{ fontSize: '11px', color: theme.subText }}>36개월 고점</label><input type="number" value={newStock.high36} onChange={e => setNewStock({...newStock, high36: e.target.value})} style={{ width: '100%', padding: '10px', borderRadius: '8px', border: `1px solid ${theme.border}`, backgroundColor: theme.bg, color: theme.text }} /></div>
           </div>
           
           <button onClick={handleAddStock} style={{ width: '100%', padding: '12px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '8px', fontWeight: 'bold' }}><Plus size={18} /> 종목 추가</button>
@@ -298,30 +262,37 @@ export default function AdminPage() {
                     </div>
 
                     <div style={{ display: 'flex', gap: '5px' }}>
-                      <button onClick={() => handleUpdateStock(s.id)} style={{ flex: 1, padding: '10px', backgroundColor: theme.primary, color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>저장</button>
-                      <button onClick={() => setEditingId(null)} style={{ flex: 1, padding: '10px', backgroundColor: theme.subText, color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>취소</button>
+                      <button onClick={() => handleUpdateStock(s.id)} style={{ flex: 1, padding: '8px', backgroundColor: theme.primary, color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer', fontWeight: 'bold' }}>저장</button>
+                      <button onClick={() => setEditingId(null)} style={{ flex: 1, padding: '8px', backgroundColor: theme.subText, color: '#fff', borderRadius: '6px', border: 'none', cursor: 'pointer' }}>취소</button>
                     </div>
                   </div>
                 ) : (
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
-                      <div style={{ width: '30px', textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: theme.subText }}>{s.index || 0}</div>
-                      <div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                          <span style={{ fontWeight: 'bold' }}>{s.symbol}</span> 
-                          <span style={{ fontSize: '12px', color: theme.subText }}>{s.name}</span>
-                          <span style={{ fontSize: '11px', color: theme.primary }}>({s.zone || "Z-"})</span>
+                  <>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>
+                        <div style={{ width: '30px', textAlign: 'center', fontSize: '12px', fontWeight: 'bold', color: theme.subText }}>{s.index || 0}</div>
+                        <div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                            <span style={{ fontWeight: 'bold' }}>{s.symbol}</span> 
+                            <span style={{ fontSize: '12px', color: theme.subText }}>{s.name}</span>
+                            <span style={{ fontSize: '11px', color: theme.primary }}>({s.zone || "Z-"})</span>
+                          </div>
+                          <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: s.enabled !== false ? '#34c75922' : '#8e8e9322', color: s.enabled !== false ? '#34c759' : '#8e8e93', marginLeft: '10px' }}>
+                            {s.enabled !== false ? "활성" : "비활성"}
+                          </span>
                         </div>
-                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', backgroundColor: s.enabled !== false ? '#34c75922' : '#8e8e9322', color: s.enabled !== false ? '#34c759' : '#8e8e93', marginLeft: '10px' }}>
-                          {s.enabled !== false ? "활성" : "비활성"}
-                        </span>
+                      </div>
+                      <div style={{ display: 'flex', gap: '10px' }}>
+                        <button onClick={() => startEdit(s)} style={{ color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}><Edit3 size={18} /></button>
+                        <button onClick={async () => confirm("삭제?") && await deleteDoc(doc(db, "stocks", s.id))} style={{ color: '#ff3b30', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={18} /></button>
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: '10px' }}>
-                      <button onClick={() => startEdit(s)} style={{ color: theme.primary, background: 'none', border: 'none', cursor: 'pointer' }}><Edit3 size={18} /></button>
-                      <button onClick={async () => confirm("삭제?") && await deleteDoc(doc(db, "stocks", s.id))} style={{ color: '#ff3b30', background: 'none', border: 'none', cursor: 'pointer' }}><Trash2 size={18} /></button>
+                    <div style={{ fontSize: '11px', color: theme.subText, display: 'flex', gap: '15px', paddingLeft: '45px' }}>
+                      <span>현재: {Number(s.currentPrice || 0).toLocaleString()}</span>
+                      <span>저점: {Number(s.low36 || 0)}</span>
+                      <span>고점: {Number(s.high36 || 0)}</span>
                     </div>
-                  </div>
+                  </>
                 )}
               </div>
             ))}
@@ -342,7 +313,7 @@ export default function AdminPage() {
           }} style={{ width: '100%', padding: '15px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold' }}><Save size={18} /> 시스템 지표 및 방향 저장</button>
         </div>
 
-        {interpretation && ( interpretation.comments && (
+        {interpretation && (
           <div style={{ backgroundColor: theme.card, padding: '25px', borderRadius: '16px', border: `1px solid ${theme.border}`, marginBottom: '20px' }}>
             <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', fontSize: '16px', fontWeight: 'bold' }}><MessageSquare size={20} color={theme.primary} /> PRO 시장해석 관리 (16개 조합)</h2>
             <div style={{ marginBottom: '20px', padding: '15px', backgroundColor: theme.bg, borderRadius: '10px' }}>
@@ -394,7 +365,7 @@ export default function AdminPage() {
               alert("16개 조합 전체 저장완료");
             }} style={{ width: '100%', padding: '15px', backgroundColor: theme.primary, color: '#fff', border: 'none', borderRadius: '10px', fontWeight: 'bold', marginTop: '10px' }}>PRO 해석 저장</button>
           </div>
-        ))}
+        )}
 
         <div style={{ backgroundColor: theme.card, padding: '25px', borderRadius: '16px', border: `2px solid ${theme.primary}`, marginBottom: '20px' }}>
           <h2 style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '20px', fontSize: '16px', fontWeight: 'bold' }}><UserCheck size={20} color={theme.primary} /> PRO 활성화 대기 요청 ({proRequests.length})</h2>

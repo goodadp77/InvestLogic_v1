@@ -1,31 +1,36 @@
 import { NextResponse } from 'next/server';
 import yahooFinance from 'yahoo-finance2';
 
-// 캐시 끄기 (항상 최신가 불러오기)
 export const dynamic = 'force-dynamic';
 export const revalidate = 0;
 
 export async function GET() {
   try {
-    // 1. 야후 파이낸스 라이브러리 설정 (에러 방지용 안전장치)
-    // import 방식 차이로 인한 에러를 막기 위해 default 객체를 확인합니다.
-    const yf = yahooFinance.default || yahooFinance;
-    
-    // 불필요한 경고 메시지 끄기
-    if (yf.suppressNotices) {
-       yf.suppressNotices(['yahooSurvey', 'cookie']);
+    // 🚀 import 방식 차이 및 인스턴스 에러 방지 안전장치
+    let yf = yahooFinance.default || yahooFinance;
+
+    // 만약 yf가 함수(Class)라면 새 인스턴스 생성 시도
+    if (typeof yf === 'function') {
+      try {
+        yf = new yf();
+      } catch (e) {
+        // 이미 인스턴스면 통과
+      }
     }
 
-    // 2. 데이터 가져오기 (나스닥 선물 + 주요 지수)
+    if (yf.suppressNotices) {
+      yf.suppressNotices(['yahooSurvey', 'cookie']);
+    }
+
+    // 데이터 가져오기 (NQ=F, NDX, GSPC)
     const results = await Promise.all([
-      yf.quote("NQ=F"),  // 나스닥 100 선물
-      yf.quote("^NDX"),  // 나스닥 100 지수
-      yf.quote("^GSPC"), // S&P 500
+      yf.quote("NQ=F"),
+      yf.quote("^NDX"),
+      yf.quote("^GSPC"),
     ]);
 
     const [nq, ndx, sp500] = results;
 
-    // 3. 화면에 보낼 데이터 정리
     const data = {
       main: {
         symbol: "NQ=F",
