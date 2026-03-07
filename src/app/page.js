@@ -296,47 +296,81 @@ export default function Home() {
     return () => unsubscribeMarket();
   }, []);
 
+  // 🚀 [복구 이식] 인증 초기화 useEffect - 지침에 따라 1곳만 정밀 교체
   useEffect(() => {
+    let mounted = true;
+    setLoading(true);
+
+    // B. 해석 데이터 리스너 분리
+    const unsubInterpretation = onSnapshot(doc(db, "marketInterpretation", "current"), (snapshot) => {
+      if (mounted && snapshot.exists()) setInterpretation(snapshot.data());
+    });
+
     const initAuth = async () => {
-      setLoading(true);
-      const timeoutId = setTimeout(() => { setLoading(false); }, 3500);
+      // C. Redirect 결과 확인
       try {
         const result = await getRedirectResult(auth);
-        if (result?.user) { setUser(result.user); }
-        onSnapshot(doc(db, "marketInterpretation", "current"), (snapshot) => {
-          if (snapshot.exists()) setInterpretation(snapshot.data());
-        });
+        if (mounted && result?.user) setUser(result.user);
       } catch (error) {
-        console.error("인증 처리 중 오류:", error.message);
-      } finally {
-        clearTimeout(timeoutId);
-        authUnsubRef.current = onAuthStateChanged(auth, async (currentUser) => {
-          setUser(currentUser);
-          if (currentUser) {
+        console.error("redirect result error:", error);
+      }
+
+      // D. Auth 리스너 등록
+      authUnsubRef.current = onAuthStateChanged(auth, async (currentUser) => {
+        if (!mounted) return;
+        setUser(currentUser);
+
+        if (currentUser) {
+          try {
             const userRef = doc(db, "users", currentUser.uid);
             const userSnap = await getDoc(userRef);
+            
             if (userSnap.exists()) {
-              setUserTier(userSnap.data().tier || "FREE");
-              if (userSnap.data().totalCapital) setTotalCapital(Number(userSnap.data().totalCapital));
+              const userData = userSnap.data();
+              setUserTier(userData.tier || "FREE");
+              if (userData.totalCapital) setTotalCapital(Number(userData.totalCapital));
+            } else {
+              // 신규 유저 기본 문서 생성
+              await setDoc(userRef, {
+                uid: currentUser.uid,
+                email: currentUser.email || "",
+                tier: "FREE",
+                totalCapital: 100000000,
+                createdAt: serverTimestamp(),
+              }, { merge: true });
+              setUserTier("FREE");
             }
+
+            // trades 리스너 연결
             safeUnsub(tradesUnsubRef);
             const q = query(collection(db, "trades"), where("uid", "==", currentUser.uid), orderBy("date", "desc"));
             tradesUnsubRef.current = onSnapshot(q, (snapshot) => {
-              setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
-            }, (err) => {
-              if (err?.code === "permission-denied" && ignorePermRef.current) return;
-              console.error(err);
+              if (mounted) setTradeHistory(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
             });
-          } else {
-            setUserTier("FREE");
-            setTradeHistory([]);
+          } catch (err) {
+            console.error("user init error:", err);
           }
-          setLoading(false);
-        });
-      }
+        } else {
+          setUserTier("FREE");
+          setTradeHistory([]);
+        }
+
+        if (mounted) setLoading(false);
+      });
     };
+
     initAuth();
+
+    // E. 백업 타임아웃
+    const backupTimeout = setTimeout(() => {
+      if (mounted) setLoading(false);
+    }, 6000);
+
     return () => {
+      // F. Cleanup
+      mounted = false;
+      clearTimeout(backupTimeout);
+      unsubInterpretation();
       safeUnsub(tradesUnsubRef);
       safeUnsub(stockSettingsUnsubRef);
       safeUnsub(authUnsubRef);
