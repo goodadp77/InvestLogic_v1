@@ -40,9 +40,10 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
       width: '100%',
       maxWidth: '100%',
       boxSizing: 'border-box',
-      overflow: 'hidden'
+      overflow: 'hidden',
+      minWidth: 0
     }}>
-      <div style={{ textAlign: 'center', marginBottom: 15, width: '100%' }}>
+      <div style={{ textAlign: 'center', marginBottom: 15, width: '100%', minWidth: 0 }}>
         <div style={{
           display: 'flex',
           justifyContent: 'center',
@@ -60,13 +61,12 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
         </div>
         <div style={{ fontSize: 11, color: theme.subText, marginTop: 4 }}>{getTodayDate()}</div>
       </div>
-      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden' }}>
+      <div style={{ width: '100%', display: 'flex', justifyContent: 'center', overflow: 'hidden', minWidth: 0 }}>
         <svg
-          width="240"
-          height="130"
           viewBox="0 0 240 130"
           style={{
-            maxWidth: "100%",
+            width: "100%",
+            maxWidth: "240px",
             height: "auto",
             display: "block"
           }}
@@ -91,7 +91,7 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
           </g>
         </svg>
       </div>
-      <div style={{ marginTop: -5, textAlign: 'center', position: 'relative', zIndex: 1, width: '100%' }}>
+      <div style={{ marginTop: -5, textAlign: 'center', position: 'relative', zIndex: 1, width: '100%', minWidth: 0 }}>
         <div style={{ fontWeight: 'bold', fontSize: 20, color: theme.text, marginTop: 10, wordBreak: 'keep-all' }}>{status}</div>
       </div>
     </div>
@@ -147,13 +147,13 @@ const ProMembershipBanner = ({ userTier, theme }) => {
 
   return (
     <div style={{ width: '100%', backgroundColor: theme.bg, padding: '10px 15px', boxSizing: 'border-box' }}>
-      <div style={{ maxWidth: '1200px', margin: '0 auto' }}>
+      <div style={{ maxWidth: '1200px', margin: '0 auto', width: '100%', minWidth: 0 }}>
         {isPaidUser ? (
           <div style={{ display: 'flex', justifyContent: 'flex-end', fontSize: 10, color: '#34c759', fontWeight: 'bold' }}>
             PRO 활성화됨
           </div>
         ) : (
-          <div style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px' }}>
+          <div style={{ backgroundColor: theme.card, border: `1px solid ${theme.border}`, borderRadius: '12px', padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px', marginBottom: '16px', width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
             <div style={{ flex: '1 1 200px', minWidth: 0 }}>
               <div style={{ fontSize: 14, fontWeight: 'bold', color: theme.text, marginBottom: 2 }}>PRO 멤버십 안내</div>
               <div style={{ fontSize: 11, color: theme.subText, lineHeight: '1.4', wordBreak: 'keep-all' }}>하락구간 방어 시스템 + 상승장 비중 최적화 전략</div>
@@ -233,7 +233,6 @@ export default function Home() {
     }
   }, [marketInfo.direction]);
 
-  // 🚀 [수정 지시 2번] 현재 종목 기준 zone 단일 계산
   const currentStock = stockMaster[symbol];
   const currentStockZone = currentStock
     ? getStockZone(
@@ -564,20 +563,37 @@ export default function Home() {
   return (
     <div style={{ width: '100%', maxWidth: '100%', overflowX: 'hidden', boxSizing: 'border-box' }}>
       <style>{homeCss}</style>
+      <style>{`
+        @media (max-width: 600px) {
+          .responsive-plan-table {
+            min-width: 0 !important;
+          }
+          .responsive-table-row {
+            padding: 8px 0 !important;
+            font-size: 11px !important;
+          }
+          .responsive-table-cell-check { width: 30px !important; }
+          .responsive-table-cell-round { width: 35px !important; }
+          .responsive-table-cell-drop { width: 45px !important; }
+          .responsive-table-cell-target { width: 65px !important; }
+          .responsive-table-cell-ratio { width: 35px !important; }
+          .responsive-table-cell-amount { width: 75px !important; }
+        }
+      `}</style>
       <InAppHandler />
       <TopNav user={user} userTier={userTier} handleLogin={handleLogin} handleLogout={handleLogout} theme={theme} />
       <ProMembershipBanner userTier={userTier} theme={theme} />
-      <div className="responsive-layout" style={{ fontFamily: '-apple-system, sans-serif', padding: '10px', boxSizing: 'border-box', width: '100%', maxWidth: '1200px', margin: '0 auto' }}>
-        <div className="grid-controls">
-          <div style={{...styles.gaugeSection, padding: '16px', boxSizing: 'border-box', marginBottom: '16px'}}>
+      <div className="responsive-layout" style={{ fontFamily: '-apple-system, sans-serif', padding: '10px', boxSizing: 'border-box', width: '100%', maxWidth: '1200px', margin: '0 auto', minWidth: 0 }}>
+        <div className="grid-controls" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
+          <div style={{...styles.gaugeSection, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
             <MarketGauge status={marketStatus} upRate={upRate} theme={theme} userTier={userTier} />
-            <div style={{ textAlign: "center", marginTop: "8px" }}>
+            <div style={{ textAlign: "center", marginTop: "8px", width: '100%', minWidth: 0 }}>
               {isProUser ? (
                 <>
                   <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "8px", color: marketInfo.direction === "up" ? "#34c759" : "#ff3b30" }}>
                     {marketInfo.direction === "down" ? "▼ 하락국면" : "▲ 상승국면"}
                   </div>
-                  <div style={{ fontSize: "13px", lineHeight: "1.5", color: theme.subText, whiteSpace: "pre-line", marginBottom: "14px" }}>
+                  <div style={{ fontSize: "13px", lineHeight: "1.5", color: theme.subText, whiteSpace: "normal", wordBreak: 'keep-all', overflowWrap: 'break-word', marginBottom: "14px", width: '100%', maxWidth: '100%', minWidth: 0 }}>
                     {getProInterpretation()}
                   </div>
                 </>
@@ -586,20 +602,20 @@ export default function Home() {
               )}
             </div>
           </div>
-          <div style={{...styles.capitalBox, padding: '16px', marginBottom: '16px'}}>
+          <div style={{...styles.capitalBox, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
             <label style={{color: theme.subText, fontSize:12}}>나의 총 투자 원금 (Total Capital)</label>
-            <div style={{display:'flex', alignItems:'center', gap:10}}>
+            <div style={{display:'flex', alignItems:'center', gap:10, width: '100%', minWidth: 0}}>
               <span style={{fontSize:20, fontWeight:'bold', color: theme.text}}>₩</span>
-              <input type="text" value={totalCapital.toLocaleString()} onChange={(e) => handleCapitalChange(e.target.value)} style={styles.capitalInput} />
+              <input type="text" value={totalCapital.toLocaleString()} onChange={(e) => handleCapitalChange(e.target.value)} style={{...styles.capitalInput, width: '100%', minWidth: 0}} />
             </div>
           </div>
-          <div style={{...styles.section, padding: '16px', marginBottom: '16px'}}>
+          <div style={{...styles.section, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
             {isProUser && (
-              <div style={{ marginBottom: "15px", padding: "12px", backgroundColor: theme.bg, borderRadius: "10px", border: `1px solid ${theme.border}` }}>
+              <div style={{ marginBottom: "15px", padding: "12px", backgroundColor: theme.bg, borderRadius: "10px", border: `1px solid ${theme.border}`, width: '100%', boxSizing: 'border-box', minWidth: 0 }}>
                 <div style={{ marginBottom: "6px" }}>
                   <span style={{ fontSize: "13px", fontWeight: "bold", color: theme.text }}>📊 종목지표</span>
                 </div>
-                <div style={{ fontSize: "12px", color: theme.text, lineHeight: "1.5" }}>
+                <div style={{ fontSize: "12px", color: theme.text, lineHeight: "1.5", flexWrap: 'wrap', display: 'flex', minWidth: 0 }}>
                   <span style={{ fontWeight: "bold", color: theme.primary }}>{getStockZoneLabel(currentStockZone)}</span>
                   <span style={{ margin: "0 8px", color: theme.border }}>|</span>
                   <span>{getStockTrendText()}</span>
@@ -609,61 +625,69 @@ export default function Home() {
               </div>
             )}
 
-            <div style={styles.tabContainer}>
+            <div style={{...styles.tabContainer, width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'auto', display: 'flex', flexWrap: 'nowrap'}}>
               {stocks.map((t) => (
-                <button key={t} ref={el => tabRefs.current[t] = el} onClick={() => handleSymbolChange(t)} style={symbol === t ? styles.activeTab : styles.tab}>{t}</button>
+                <button key={t} ref={el => tabRefs.current[t] = el} onClick={() => handleSymbolChange(t)} style={{...(symbol === t ? styles.activeTab : styles.tab), flex: '0 0 auto'}}>{t}</button>
               ))}
             </div>
-            <div style={{...styles.controlGrid, gap: '10px'}}>
-              <div style={styles.controlItem}>
+            <div style={{display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px', width: '100%', minWidth: 0}}>
+              <div style={{minWidth: 0}}>
                 <label style={{color: theme.text, fontSize: 11}}>이 종목 비중 (%)</label>
-                <div style={{display:'flex', alignItems:'center'}}>
-                  <input type="text" value={stockSettings[symbol]?.percent || ""} onChange={(e) => updateStockSetting('percent', e.target.value)} style={styles.smallInput} />
+                <div style={{display:'flex', alignItems:'center', width: '100%', minWidth: 0}}>
+                  <input type="text" value={stockSettings[symbol]?.percent || ""} onChange={(e) => updateStockSetting('percent', e.target.value)} style={{...styles.smallInput, width: '100%', minWidth: 0}} />
                   <span style={{marginLeft:5, color: theme.text}}>%</span>
                 </div>
               </div>
-              <div style={styles.controlItem}>
+              <div style={{minWidth: 0}}>
                 <label style={{color: theme.text, fontSize: 11}}>배정된 투자금</label>
-                <div style={{color:'#30d158', fontWeight:'bold', fontSize:18}}>{Math.floor((totalCapital * Number(stockSettings[symbol]?.percent || 100)) / 100).toLocaleString()} <span style={{fontSize:12}}>원</span></div>
+                <div style={{color:'#30d158', fontWeight:'bold', fontSize:18, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', width: '100%', minWidth: 0}}>{Math.floor((totalCapital * Number(stockSettings[symbol]?.percent || 100)) / 100).toLocaleString()} <span style={{fontSize:12}}>원</span></div>
               </div>
             </div>
-            <div style={{...styles.controlItem, marginTop:10}}>
-              <label style={{color: theme.text, fontSize: 11}}>현재 기준 가격 (Start Price)</label>
-              <input type="text" value={stockSettings[symbol]?.currentPrice || ""} onChange={(e) => updateStockSetting('currentPrice', e.target.value)} style={styles.fullInput} placeholder={`관리자 기준가: ${stockMaster[symbol]?.currentPrice || 0}`} />
+            <div style={{marginTop:10, width: '100%', minWidth: 0}}>
+              <label style={{color: theme.text, fontSize: 11, display: 'block'}}>현재 기준 가격 (Start Price)</label>
+              <input type="text" value={stockSettings[symbol]?.currentPrice || ""} onChange={(e) => updateStockSetting('currentPrice', e.target.value)} style={{...styles.fullInput, width: '100%', minWidth: 0, boxSizing: 'border-box'}} placeholder={`관리자 기준가: ${stockMaster[symbol]?.currentPrice || 0}`} />
             </div>
           </div>
         </div>
-        <div className="grid-main">
+        <div className="grid-main" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
           {(stocks.length === 0 || !symbol || !stockMaster[symbol]) ? (
-            <div style={{ ...styles.section, textAlign: 'center', padding: '40px', color: theme.subText, minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>⏳ 종목 데이터를 불러오고 있습니다...</div>
+            <div style={{ ...styles.section, textAlign: 'center', padding: '40px', color: theme.subText, minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', boxSizing: 'border-box' }}>⏳ 종목 데이터를 불러오고 있습니다...</div>
           ) : (
-            <div style={{...styles.section, padding: '16px', marginBottom: '16px'}}>
-              <div style={{ display: 'flex', justifyContent: 'space-around', backgroundColor: theme.bg, padding: '10px 15px', borderRadius: 8, marginBottom: 15, fontSize: 12, border: `1px solid ${theme.border}` }}>
-                <div style={{textAlign: 'center'}}><div style={{color: theme.subText, marginBottom: 2}}>진입 회차</div><div style={{fontWeight: 'bold', color: theme.text}}>{!user ? "-" : `${currentRound}차 완료`}</div></div>
-                <div style={{textAlign: 'center'}}><div style={{color: theme.subText, marginBottom: 2}}>누적 평단가</div><div style={{fontWeight: 'bold', color: '#30d158'}}>{!user ? "-" : (realAvgPrice > 0 ? `$${realAvgPrice.toLocaleString(undefined, {maximumFractionDigits:2})}` : "-")}</div></div>
-                <div style={{textAlign: 'center'}}><div style={{color: theme.subText, marginBottom: 2}}>다음 진입가</div><div style={{fontWeight: 'bold', color: '#ff453a'}}>{!user ? "-" : (nextTargetPrice > 0 ? `$${nextTargetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}` : "대기")}</div></div>
+            <div style={{...styles.section, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: theme.bg, padding: '10px 15px', borderRadius: 8, marginBottom: 15, fontSize: 12, border: `1px solid ${theme.border}`, flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>진입 회차</div><div style={{fontWeight: 'bold', color: theme.text}}>{!user ? "-" : `${currentRound}차 완료`}</div></div>
+                <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>누적 평단가</div><div style={{fontWeight: 'bold', color: '#30d158'}}>{!user ? "-" : (realAvgPrice > 0 ? `$${realAvgPrice.toLocaleString(undefined, {maximumFractionDigits:2})}` : "-")}</div></div>
+                <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>다음 진입가</div><div style={{fontWeight: 'bold', color: '#ff453a'}}>{!user ? "-" : (nextTargetPrice > 0 ? `$${nextTargetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}` : "대기")}</div></div>
               </div>
               <div style={{...styles.sectionHeader, marginBottom: 10}}><h3 style={{color: theme.text}}>📉 매수 플랜 상세 (최종 {currentFinalRegime}구간 적용)</h3></div>
-              <div style={styles.tableScroll}>
-                <div style={{ position: 'relative' }}>
-                  <div style={{ ...styles.tableHeader, display: 'flex', width: '100%' }}><div style={{width:40}}>실행</div><div style={{width:50}}>회차</div><div style={{width:60}}>하락%</div><div style={{width:80, color:'#81b0ff'}}>목표가</div><div style={{width:50}}>비중</div><div style={{width:100, textAlign:'right'}}>매수금액</div><div style={{flex:1, textAlign:'right', paddingRight: 5, color: theme.subText}}>예상평단</div></div>
+              <div style={{ width: '100%', maxWidth: '100%', minWidth: 0, overflowX: 'auto' }}>
+                <div className="responsive-plan-table" style={{ position: 'relative', width: '100%', boxSizing: 'border-box' }}>
+                  <div className="responsive-table-row" style={{ ...styles.tableHeader, display: 'flex', width: '100%', boxSizing: 'border-box', padding: '10px 0', fontSize: '11px' }}>
+                    <div className="responsive-table-cell-check" style={{width:40}}>실행</div>
+                    <div className="responsive-table-cell-round" style={{width:44}}>회차</div>
+                    <div className="responsive-table-cell-drop" style={{width:52}}>하락%</div>
+                    <div className="responsive-table-cell-target" style={{width:72, color:'#81b0ff'}}>목표가</div>
+                    <div className="responsive-table-cell-ratio" style={{width:44}}>비중</div>
+                    <div className="responsive-table-cell-amount" style={{width:88, textAlign:'right'}}>매수금액</div>
+                    <div className="responsive-table-cell-avg" style={{flex:1, textAlign:'right', paddingRight: 5, color: theme.subText}}>예상평단</div>
+                  </div>
                   {buyPlan.map((p) => (
-                    <div key={p.turn} style={{ ... (p.isExecuted ? styles.rowExecuted : styles.row), display: 'flex', width: '100%', color: theme.text }}>
-                      <div style={{width:40}}><input type="checkbox" checked={p.isExecuted} onChange={() => toggleExecution(p)} disabled={p.isExecuted} style={{cursor: 'pointer', width: '20px', height: '20px', accentColor: '#30d158'}} /></div>
-                      <div style={{width:50}}>{p.turn}차</div>
-                      <div style={{width:60, color:'#ff453a'}}>{(p.dropRate * 100).toFixed(0)}%</div>
-                      <div style={{width:80, color:'#81b0ff', fontWeight:'bold'}}>${p.targetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}</div>
-                      <div style={{width:50, fontSize:12}}>{p.ratio}%</div>
-                      <div style={{width:100, textAlign:'right', fontWeight:'bold'}}>{p.amount.toLocaleString()}</div>
-                      <div style={{flex:1, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', paddingRight: 5}}>
-                        <span style={{color: theme.subText, fontSize: 12}}>${p.expectedAvg.toLocaleString(undefined, {maximumFractionDigits:1})}</span>
-                        {Number(p.improvement) > 0 && !p.isExecuted && <span style={{color: '#30d158', fontSize: 10, fontWeight: 'bold'}}>↓ {p.improvement}% 개선</span>}
+                    <div key={p.turn} className="responsive-table-row" style={{ ... (p.isExecuted ? styles.rowExecuted : styles.row), display: 'flex', width: '100%', color: theme.text, boxSizing: 'border-box', alignItems: 'center', padding: '12px 0' }}>
+                      <div className="responsive-table-cell-check" style={{width:40}}><input type="checkbox" checked={p.isExecuted} onChange={() => toggleExecution(p)} disabled={p.isExecuted} style={{cursor: 'pointer', width: '18px', height: '18px', accentColor: '#30d158'}} /></div>
+                      <div className="responsive-table-cell-round" style={{width:44, fontSize: '12px'}}>{p.turn}차</div>
+                      <div className="responsive-table-cell-drop" style={{width:52, color:'#ff453a', fontSize: '12px'}}>{(p.dropRate * 100).toFixed(0)}%</div>
+                      <div className="responsive-table-cell-target" style={{width:72, color:'#81b0ff', fontWeight:'bold', fontSize: '12px'}}>${p.targetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}</div>
+                      <div className="responsive-table-cell-ratio" style={{width:44, fontSize: '11px'}}>{p.ratio}%</div>
+                      <div className="responsive-table-cell-amount" style={{width:88, textAlign:'right', fontWeight:'bold', fontSize: '12px'}}>{p.amount.toLocaleString()}</div>
+                      <div className="responsive-table-cell-avg" style={{flex:1, textAlign:'right', display:'flex', flexDirection:'column', alignItems:'flex-end', paddingRight: 5}}>
+                        <span style={{color: theme.subText, fontSize: '11px'}}>${p.expectedAvg.toLocaleString(undefined, {maximumFractionDigits:1})}</span>
+                        {Number(p.improvement) > 0 && !p.isExecuted && <span style={{color: '#30d158', fontSize: 10, fontWeight: 'bold'}}>↓ {p.improvement}%</span>}
                       </div>
                     </div>
                   ))}
                 </div>
               </div>
-              <div style={{...styles.totalBar, padding: '12px 15px', marginTop: '16px'}}><span style={{color: theme.text}}>총 실제 매수 운영금</span><span style={{ fontSize: 18, color: '#30d158', fontWeight: 'bold' }}>{realTotalInvested.toLocaleString()} 원</span></div>
+              <div style={{...styles.totalBar, width: '100%', boxSizing: 'border-box', padding: '12px 15px', marginTop: '16px'}}><span style={{color: theme.text}}>총 실제 매수 운영금</span><span style={{ fontSize: 18, color: '#30d158', fontWeight: 'bold' }}>{realTotalInvested.toLocaleString()} 원</span></div>
               
               <div
                 style={{
@@ -676,7 +700,10 @@ export default function Home() {
                   borderRadius: 8,
                   marginTop: 20,
                   border: `1px solid ${theme.border}`,
-                  lineHeight: "1.55"
+                  lineHeight: "1.55",
+                  width: '100%',
+                  boxSizing: 'border-box',
+                  wordBreak: 'keep-all'
                 }}
               >
                 💡 하락장에서 누적 평단가를 최대 60% 이상 낮추도록 설계되었으며<br/>
@@ -686,27 +713,27 @@ export default function Home() {
               </div>
             </div>
           )}
-          <div style={{...styles.section, padding: '16px', marginBottom: '16px'}}>
+          <div style={{...styles.section, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
             <div style={styles.sectionHeader}><h3 style={{color: theme.text}}>💰 {symbol} 실제 매수 기록</h3></div>
             {!user && (
-              <div style={{ background: '#0B1220', border: '1px solid #1F2A37', color: '#E5E7EB', borderRadius: '12px', padding: '14px 16px', textAlign: 'center', fontSize: '13px', marginBottom: '15px', boxShadow: "0 8px 24px rgba(0,0,0,0.35)", lineHeight: "1.5" }}>
+              <div style={{ background: '#0B1220', border: '1px solid #1F2A37', color: '#E5E7EB', borderRadius: '12px', padding: '14px 16px', textAlign: 'center', fontSize: '13px', marginBottom: '15px', boxShadow: "0 8px 24px rgba(0,0,0,0.35)", lineHeight: "1.5", width: '100%', boxSizing: 'border-box' }}>
                 <span style={{ color: '#9CA3AF' }}>로그인 후 매수 기록 저장 및 투자 추적 기능이 활성화됩니다.</span>
               </div>
             )}
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', width: '100%' }}>
               {myTrades.map((trade) => (
-                <div key={trade.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px 15px', backgroundColor: theme.bg, borderRadius: '10px', border: `1px solid ${theme.border}` }}>
-                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center'}}>
+                <div key={trade.id} style={{ display: 'flex', flexDirection: 'column', gap: '10px', padding: '12px 15px', backgroundColor: theme.bg, borderRadius: '10px', border: `1px solid ${theme.border}`, width: '100%', boxSizing: 'border-box' }}>
+                  <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', flexWrap: 'wrap', gap: '8px'}}>
                     {editingId === trade.id ? (
-                      <div style={{display:'flex', gap:10, flex:1}}>
-                        <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} style={{flex:1, padding:5, borderRadius:4, border:`1px solid ${theme.border}`, backgroundColor:theme.card, color:theme.text}} />
+                      <div style={{display:'flex', gap:10, flex:1, width: '100%', minWidth: 0}}>
+                        <input type="number" value={editPrice} onChange={(e) => setEditPrice(e.target.value)} style={{flex:1, padding:5, borderRadius:4, border:`1px solid ${theme.border}`, backgroundColor:theme.card, color:theme.text, minWidth: 0}} />
                         <button onClick={() => saveEdit(trade)} style={styles.saveBtn}>저장</button>
                         <button onClick={() => setEditingId(null)} style={styles.delBtn}>취소</button>
                       </div>
                     ) : (
                       <>
-                        <div><span style={{fontWeight:'bold', marginRight:10, color: theme.text}}>{trade.round}차</span><span style={{color: theme.subText}}>{trade.amount.toLocaleString()}원 (@ {trade.price})</span></div>
-                        <div style={{display:'flex', gap:8}}>
+                        <div style={{flex: 1, minWidth: 0}}><span style={{fontWeight:'bold', marginRight:10, color: theme.text}}>{trade.round}차</span><span style={{color: theme.subText, wordBreak: 'break-all'}}>{trade.amount.toLocaleString()}원 (@ {trade.price})</span></div>
+                        <div style={{display:'flex', gap:8, flexShrink: 0}}>
                           <button onClick={() => { setEditingId(trade.id); setEditPrice(trade.price); }} style={styles.editBtn}>수정</button>
                           <button onClick={()=>deleteTrade(trade.id)} style={styles.delBtn}>삭제</button>
                         </div>
@@ -718,7 +745,10 @@ export default function Home() {
             </div>
           </div>
         </div>
-        <div className="grid-chart"><FlowChart theme={theme} /><div style={{ textAlign: 'center', fontSize: 11, color: theme.subText, marginTop: 8 }}>※ 본 차트는 Invesco QQQ ETF의 15분 지연 데이터입니다.</div></div>
+        <div className="grid-chart" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', overflow: 'hidden' }}>
+          <FlowChart theme={theme} />
+          <div style={{ textAlign: 'center', fontSize: 11, color: theme.subText, marginTop: 8, wordBreak: 'keep-all', width: '100%' }}>※ 본 차트는 Invesco QQQ ETF의 15분 지연 데이터입니다.</div>
+        </div>
       </div>
     </div>
   );
