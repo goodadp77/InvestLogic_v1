@@ -3,6 +3,10 @@ import { useEffect } from "react";
 
 export default function InAppHandler() {
   useEffect(() => {
+    // 🚀 [진단 지침 5번] 실행 확인용 테스트 코드 추가
+    console.log("INAPP HANDLER START");
+    alert("INAPP HANDLER START");
+
     const userAgent = navigator.userAgent.toLowerCase();
     const targetUrl = window.location.href;
 
