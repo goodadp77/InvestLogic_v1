@@ -12,10 +12,10 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   /**
-   * 🚀 핵심 수정: Firebase 기본 도메인으로 원복
-   * Vercel의 rewrite 설정과 결합하여 인앱 브라우저 차단을 우회합니다.
+   * 🚀 루프 전쟁 종결을 위한 핵심 수정: authDomain을 Vercel 주소로 일치
+   * 이 주소가 접속 도메인과 일치해야 인앱 브라우저가 세션을 가로채지 않습니다.
    */
-  authDomain: "nasdaq-tamagotchi.firebaseapp.com", 
+  authDomain: "investlogicv1.vercel.app", 
   projectId: "nasdaq-tamagotchi", 
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
