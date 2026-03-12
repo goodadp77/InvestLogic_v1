@@ -5,7 +5,9 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithRedirect, 
-  getRedirectResult 
+  getRedirectResult,
+  setPersistence,
+  browserLocalPersistence
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
@@ -53,6 +55,8 @@ export const socialLogin = async () => {
     // 2. 판별 결과에 따른 로그인 방식 분기
     if (isInApp) {
       console.log("진짜 인앱 환경 감지: 리다이렉트 로그인 실행");
+      // 🚀 인앱 redirect session 오류 해결을 위해 persistence 설정 명시적 추가
+      await setPersistence(auth, browserLocalPersistence);
       await signInWithRedirect(auth, provider);
     } else {
       // 3. 일반 모바일 브라우저(크롬, 사파리, 삼성인터넷) 및 데스크톱은 팝업 사용
