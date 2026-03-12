@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { auth, db, socialLogin, getRedirectResult } from "../firebase";
+import { auth, db, socialLogin } from "../firebase"; // 1. getRedirectResult 삭제
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc, orderBy, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-// 🚀 분리된 독립 컴포넌트 및 스타일 임포트 (InAppHandler 제거됨)
+// 🚀 분리된 독립 컴포넌트 및 스타일 임포트 (InAppHandler 추가 금지 지침 준수)
 import FlowChart from "../components/flowchart";
 import { homeCss, getStyles } from "../components/homestyles";
 
@@ -362,12 +362,7 @@ export default function Home() {
     });
 
     const initAuth = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (mounted && result?.user) setUser(result.user);
-      } catch (error) {
-        console.error("redirect result error:", error);
-      }
+      // 2. initAuth 내부 getRedirectResult 처리 블록 삭제 (지침 반영)
 
       authUnsubRef.current = onAuthStateChanged(auth, async (currentUser) => {
         if (!mounted) return;
