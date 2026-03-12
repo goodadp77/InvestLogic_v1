@@ -4,8 +4,7 @@ import { auth, db, socialLogin, getRedirectResult } from "../firebase";
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc, orderBy, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-// 🚀 분리된 독립 컴포넌트 및 스타일 임포트
-import InAppHandler from "../components/inapphandler"; 
+// 🚀 분리된 독립 컴포넌트 및 스타일 임포트 (InAppHandler 제거됨)
 import FlowChart from "../components/flowchart";
 import { homeCss, getStyles } from "../components/homestyles";
 
@@ -471,13 +470,17 @@ export default function Home() {
     );
 
     const stockZone = currentStockZone;
+
     const finalRegime = getFinalRegime(marketRegime, stockZone);
+
     const allocatedCapital = (totalCapital * (Number(stockSettings[symbol]?.percent || 100))) / 100;
+    
     const template = calculateSplitPlan(userTier, finalRegime, allocatedCapital);
 
     return template.map((p, index) => {
       const dropRate = DEFAULT_DROPS[index] || 0;
       const targetPrice = basePrice * (1 - dropRate);
+      
       const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === p.turn && t.type === 'buy');
       
       let accumAmount = 0;
@@ -576,7 +579,6 @@ export default function Home() {
           .responsive-table-cell-amount { width: 75px !important; }
         }
       `}</style>
-      <InAppHandler />
       <TopNav user={user} userTier={userTier} handleLogin={handleLogin} handleLogout={handleLogout} theme={theme} />
       <ProMembershipBanner userTier={userTier} theme={theme} />
       <div className="responsive-layout" style={{ fontFamily: '-apple-system, sans-serif', padding: '10px', boxSizing: 'border-box', width: '100%', maxWidth: '1200px', margin: '0 auto', minWidth: 0 }}>

@@ -1,7 +1,5 @@
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
-// 🚀 파일명 소문자 통일 규칙에 따라 정확히 참조됨
-import InAppHandler from "../components/inapphandler"; 
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -22,8 +20,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="ko">
       <body className={`${geistSans.variable} ${geistMono.variable} antialiased`}>
-        {/* 🚀 인증 세션 꼬임을 방지하기 위해 인앱 핸들러를 최상단에 배치 */}
-        <InAppHandler />
+        {/* 🚀 InAppHandler 제거됨: 인앱 강제 브라우저 이동 없이 로그인 버튼 클릭 시 로직 작동 */}
         {children}
       </body>
     </html>
