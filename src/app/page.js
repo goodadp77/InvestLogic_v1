@@ -471,17 +471,13 @@ export default function Home() {
     );
 
     const stockZone = currentStockZone;
-
     const finalRegime = getFinalRegime(marketRegime, stockZone);
-
     const allocatedCapital = (totalCapital * (Number(stockSettings[symbol]?.percent || 100))) / 100;
-    
     const template = calculateSplitPlan(userTier, finalRegime, allocatedCapital);
 
     return template.map((p, index) => {
       const dropRate = DEFAULT_DROPS[index] || 0;
       const targetPrice = basePrice * (1 - dropRate);
-      
       const isExecuted = tradeHistory.some(t => t.symbol === symbol && t.round === p.turn && t.type === 'buy');
       
       let accumAmount = 0;
@@ -654,7 +650,7 @@ export default function Home() {
             <div style={{ ...styles.section, textAlign: 'center', padding: '40px', color: theme.subText, minHeight: '300px', display: 'flex', alignItems: 'center', justifyContent: 'center', width: '100%', boxSizing: 'border-box' }}>⏳ 종목 데이터를 불러오고 있습니다...</div>
           ) : (
             <div style={{...styles.section, width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box', padding: '16px', marginBottom: '16px'}}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: theme.bg, padding: '10px 15px', borderRadius: 8, marginBottom: 15, fontSize: 12, border: `1px solid ${theme.border}`, flexWrap: 'wrap', gap: '8px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-around', backgroundColor: theme.bg, padding: '10px 15px', borderRadius: 8, marginBottom: 15, fontSize: 12, border: `1px solid ${theme.border}`, flexWrap: 'wrap', gap: '8px' }}>
                 <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>진입 회차</div><div style={{fontWeight: 'bold', color: theme.text}}>{!user ? "-" : `${currentRound}차 완료`}</div></div>
                 <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>누적 평단가</div><div style={{fontWeight: 'bold', color: '#30d158'}}>{!user ? "-" : (realAvgPrice > 0 ? `$${realAvgPrice.toLocaleString(undefined, {maximumFractionDigits:2})}` : "-")}</div></div>
                 <div style={{textAlign: 'center', flex: '1 1 90px'}}><div style={{color: theme.subText, marginBottom: 2}}>다음 진입가</div><div style={{fontWeight: 'bold', color: '#ff453a'}}>{!user ? "-" : (nextTargetPrice > 0 ? `$${nextTargetPrice.toLocaleString(undefined, {maximumFractionDigits:1})}` : "대기")}</div></div>
