@@ -3,19 +3,22 @@ import { useEffect } from "react";
 
 export default function InAppHandler() {
   useEffect(() => {
-    // 🚨 [진단 지침] 인앱 해결 완료 전까지 무조건 alert 표시
-    alert("InAppHandler 실행됨");
-
     const ua = navigator.userAgent.toLowerCase();
-    alert("UA: " + ua);
-
     const targetUrl = window.location.href;
-    const isInApp = /kakaotalk|naver|line|daum|instagram|fban|fbav/.test(ua);
+
+    // 🚀 인앱 브라우저 정밀 감지 (기존 목록에 kakaowork, wv 추가 유지)
+    const isInApp = /kakaotalk|kakaowork|naver|line|daum|instagram|fban|fbav|wv/.test(ua);
 
     if (isInApp) {
-      alert("인앱 브라우저 감지됨");
-    } else {
-      alert("일반 브라우저 감지됨");
+      // 1. iOS (아이폰/패드) -> Safari 강제 호출
+      if (/iphone|ipad|ipod/.test(ua)) {
+        window.location.href = `x-web-search://?${targetUrl}`;
+      } 
+      // 2. Android (안드로이드) -> Chrome Intent 호출
+      else if (/android/.test(ua)) {
+        const cleanUrl = targetUrl.replace(/^https?:\/\//, "");
+        window.location.href = `intent://${cleanUrl}#Intent;scheme=https;package=com.android.chrome;end`;
+      }
     }
   }, []);
 
