@@ -1,23 +1,25 @@
 "use client";
 import { useEffect } from "react";
-import { auth, getRedirectResult } from "../firebase";
 
 export default function InAppHandler() {
   useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        // 🚀 리다이렉트된 인증 결과를 확인
-        const result = await getRedirectResult(auth);
-        if (result?.user) {
-          // 인증 성공 시 세션 동기화를 위해 페이지 새로고침(또는 이동)
-          window.location.replace("/");
-        }
-      } catch (error) {
-        console.error("InApp Auth Redirect Error:", error);
+    const userAgent = navigator.userAgent.toLowerCase();
+    const targetUrl = window.location.href;
+
+    // 🚀 1. 인앱 브라우저 정밀 감지
+    const isInApp = /kakaotalk|naver|line|daum|instagram|fban|fbav/.test(userAgent);
+
+    if (isInApp) {
+      // 🚀 2. iOS (아이폰) - x-web-search 스킴을 이용한 Safari 호출
+      if (/iphone|ipad|ipod/.test(userAgent)) {
+        window.location.href = `x-web-search://?${targetUrl}`;
+      } 
+      // 🚀 3. Android (안드로이드) - Intent 스킴을 이용한 Chrome 호출
+      else if (/android/.test(userAgent)) {
+        window.location.href = `intent://${targetUrl.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end`;
       }
-    };
-    checkRedirect();
+    }
   }, []);
 
-  return null; // UI 없이 로직만 수행
+  return null;
 }

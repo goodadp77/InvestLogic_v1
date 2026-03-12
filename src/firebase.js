@@ -12,10 +12,10 @@ import { getFirestore } from "firebase/firestore";
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   /**
-   * 🚀 루프 전쟁 종결을 위한 핵심 수정: authDomain을 Vercel 주소로 일치
-   * 이 주소가 접속 도메인과 일치해야 인앱 브라우저가 세션을 가로채지 않습니다.
+   * 🚀 외부 브라우저 호출(InAppHandler) 전략으로 선회함에 따라
+   * authDomain은 가장 안정적인 파이어베이스 기본 도메인으로 운용합니다.
    */
-  authDomain: "investlogicv1.vercel.app", 
+  authDomain: "nasdaq-tamagotchi.firebaseapp.com", 
   projectId: "nasdaq-tamagotchi", 
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -33,29 +33,26 @@ provider.setCustomParameters({ prompt: 'select_account' });
 export const db = getFirestore(app);
 
 /**
- * 🚀 고도화된 하이브리드 로그인 함수
- * 인앱 브라우저(네이버, 카카오 등)와 일반 브라우저를 정밀하게 구분합니다.
+ * 🚀 일반 로그인 함수
+ * InAppHandler가 이미 인앱 사용자를 외부 브라우저(Safari/Chrome)로 튕겨냈으므로
+ * 여기서는 표준적인 팝업/리다이렉트 로직만 수행하면 됩니다.
  */
 export const socialLogin = async () => {
   const userAgent = navigator.userAgent.toLowerCase();
-  
-  // 1. 인앱 브라우저 및 모바일 환경 정밀 감지
-  const isInApp = /naver|kakaotalk|line|daum|iphone|ipad|ipod|android/.test(userAgent);
   const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
 
   try {
-    // 2. 인앱 브라우저이거나 모바일인 경우 무조건 리다이렉트 방식 사용
-    if (isInApp || isMobile) {
-      console.log("인앱/모바일 환경 감지: 리다이렉트 로그인 실행");
+    // 모바일 환경은 리다이렉트, 데스크톱은 팝업 사용 (표준 정책)
+    if (isMobile) {
+      console.log("모바일 환경: 리다이렉트 로그인 실행");
       await signInWithRedirect(auth, provider);
     } else {
-      // 3. 데스크톱 환경은 사용자 편의를 위해 팝업 방식 사용
+      console.log("데스크톱 환경: 팝업 로그인 실행");
       await signInWithPopup(auth, provider);
     }
   } catch (error) {
     console.error("Firebase Login Error:", error);
     
-    // 구글 정책상 인앱 브라우저 차단 시 대응
     if (error.code === 'auth/disallowed-useragent') {
       alert("이 브라우저에서는 구글 로그인이 제한됩니다.\n\n오른쪽 상단 메뉴(⋮ 또는 ···)를 눌러\n'기본 브라우저로 열기' 또는 'Safari로 열기'를 선택해 주세요.");
     } else {
