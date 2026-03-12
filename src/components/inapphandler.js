@@ -1,24 +1,23 @@
-// src/components/inappHandler.js
+"use client";
 import { useEffect } from "react";
 import { auth, getRedirectResult } from "../firebase";
 
 export default function InAppHandler() {
   useEffect(() => {
-    // 🚀 인증 결과를 낚아채는 즉시 실행 함수
     const checkRedirect = async () => {
       try {
+        // 🚀 리다이렉트된 인증 결과를 확인
         const result = await getRedirectResult(auth);
         if (result?.user) {
-          console.log("인앱 리다이렉트 성공:", result.user.email);
-          // 성공 시 메인 페이지로 이동하여 세션 확정
+          // 인증 성공 시 세션 동기화를 위해 페이지 새로고침(또는 이동)
           window.location.replace("/");
         }
       } catch (error) {
-        console.error("인앱 핸들러 오류:", error);
+        console.error("InApp Auth Redirect Error:", error);
       }
     };
     checkRedirect();
   }, []);
 
-  return null; // 화면에는 아무것도 나타나지 않는 투명 컴포넌트입니다.
+  return null; // UI 없이 로직만 수행
 }
