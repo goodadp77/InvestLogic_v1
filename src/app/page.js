@@ -1,10 +1,10 @@
 "use client";
 import { useState, useEffect, useRef } from "react";
-import { auth, db, socialLogin } from "../firebase"; // 1. getRedirectResult 삭제
+import { auth, db, socialLogin } from "../firebase"; // 1. getRedirectResult 삭제 완료
 import { signOut, onAuthStateChanged } from "firebase/auth";
 import { collection, addDoc, query, where, onSnapshot, deleteDoc, doc, updateDoc, orderBy, getDoc, setDoc, serverTimestamp } from "firebase/firestore";
 
-// 🚀 분리된 독립 컴포넌트 및 스타일 임포트 (InAppHandler 추가 금지 지침 준수)
+// 🚀 분리된 독립 컴포넌트 및 스타일 임포트 (InAppHandler는 layout.js에서 전담)
 import FlowChart from "../components/flowchart";
 import { homeCss, getStyles } from "../components/homestyles";
 
@@ -362,8 +362,7 @@ export default function Home() {
     });
 
     const initAuth = async () => {
-      // 2. initAuth 내부 getRedirectResult 처리 블록 삭제 (지침 반영)
-
+      // 🚀 지침 3번 반영: page.js 내부의 initAuth는 redirect 처리를 하지 않음
       authUnsubRef.current = onAuthStateChanged(auth, async (currentUser) => {
         if (!mounted) return;
         setUser(currentUser);
@@ -440,7 +439,18 @@ export default function Home() {
     return proInfo?.A || "";
   };
 
-  const handleLogin = async () => { await socialLogin(); };
+  // 🚀 지침 3번 반영: 인앱 차단형 handleLogin으로 교체
+  const handleLogin = async () => {
+    const userAgent = navigator.userAgent.toLowerCase();
+    const isInApp = /kakaotalk|naver|line|daum|instagram|fban|fbav/.test(userAgent);
+
+    if (isInApp) {
+      alert("카카오/네이버 앱 내부에서는 구글 로그인이 제한됩니다.\n\n자동으로 외부 브라우저 이동을 시도합니다. 이동되지 않으면 우측 상단 메뉴에서 '브라우저로 열기'를 선택해 주세요.");
+      return; // 인앱이면 socialLogin 실행 금지
+    }
+
+    await socialLogin();
+  };
 
   const handleLogout = async () => {
     ignorePermRef.current = true;
