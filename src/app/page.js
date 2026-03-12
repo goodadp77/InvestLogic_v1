@@ -98,7 +98,7 @@ const MarketGauge = ({ status, upRate, theme, userTier }) => {
 };
 
 // --- [컴포넌트 2: 상단 네비게이션 & 햄버거 메뉴] ---
-const TopNav = ({ user, userTier, handleLogin, handleLogout, theme }) => {
+const TopNav = ({ user, userTier, handleLogin, handleLogout, theme, isInApp, openExternalBrowser }) => {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const menuRef = useRef(null);
 
@@ -117,8 +117,57 @@ const TopNav = ({ user, userTier, handleLogin, handleLogout, theme }) => {
       <div style={{ maxWidth: '1200px', margin: '0 auto', padding: '10px 15px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxSizing: 'border-box' }}>
         <div style={{ fontSize: 18, fontWeight: 'bold', color: theme.text, cursor: 'pointer', whiteSpace: 'nowrap' }} onClick={() => window.location.href='/'}>🥚 InvestLogic</div>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-          {user ? <button onClick={handleLogout} style={{ padding:'5px 10px', fontSize:11, backgroundColor: theme.bg, color: theme.text, border:`1px solid ${theme.border}`, borderRadius:4, cursor:'pointer', whiteSpace: 'nowrap' }}>로그아웃</button>
-            : <button onClick={handleLogin} style={{ padding:'5px 12px', fontSize:11, backgroundColor:'#4285F4', color:'white', border:'none', borderRadius:4, fontWeight:'bold', cursor:'pointer', whiteSpace: 'nowrap' }}>로그인 (무료)</button>}
+          {user ? (
+            <button
+              onClick={handleLogout}
+              style={{
+                padding: "5px 10px",
+                fontSize: 11,
+                backgroundColor: theme.bg,
+                color: theme.text,
+                border: `1px solid ${theme.border}`,
+                borderRadius: 4,
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              로그아웃
+            </button>
+          ) : isInApp ? (
+            <button
+              onClick={openExternalBrowser}
+              style={{
+                padding: "5px 12px",
+                fontSize: 11,
+                backgroundColor: "#4285F4",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                fontWeight: "bold",
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              브라우저로 열기
+            </button>
+          ) : (
+            <button
+              onClick={handleLogin}
+              style={{
+                padding: "5px 12px",
+                fontSize: 11,
+                backgroundColor: "#4285F4",
+                color: "white",
+                border: "none",
+                borderRadius: 4,
+                fontWeight: "bold",
+                cursor: "pointer",
+                whiteSpace: "nowrap"
+              }}
+            >
+              로그인 (무료)
+            </button>
+          )}
           
           <div style={{ position: 'relative' }} ref={menuRef}>
             <button onClick={() => setIsMenuOpen(!isMenuOpen)} style={{ background: 'none', border: 'none', fontSize: 20, cursor: 'pointer', color: theme.text, display: 'flex', alignItems: 'center' }}>☰</button>
@@ -174,6 +223,34 @@ export default function Home() {
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [userTier, setUserTier] = useState("FREE");
+
+  // 🚀 지침 1️⃣: SSR 충돌 방지를 위한 상태 기반 인앱 감지 적용
+  const [isInApp, setIsInApp] = useState(false);
+  const [userAgent, setUserAgent] = useState("");
+
+  useEffect(() => {
+    const ua = navigator.userAgent.toLowerCase();
+    setUserAgent(ua);
+    setIsInApp(/kakaotalk|naver|line|daum|instagram|fban|fbav/.test(ua));
+  }, []);
+
+  const openExternalBrowser = () => {
+    const currentUrl = window.location.href;
+
+    // iOS → Safari
+    if (/iphone|ipad|ipod/.test(userAgent)) {
+      window.location.href = `x-web-search://?${currentUrl}`;
+      return;
+    }
+
+    // Android → Chrome
+    if (/android/.test(userAgent)) {
+      window.location.href = `intent://${currentUrl.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end`;
+      return;
+    }
+
+    alert("외부 브라우저에서 다시 열어주세요.");
+  };
 
   const theme = {
     bg: "#F2F2F7",
@@ -438,35 +515,7 @@ export default function Home() {
     return proInfo?.A || "";
   };
 
-  /**
-   * 🚀 [수정 지침 단일 적용] handleLogin 교체
-   * 인앱 브라우저 감지 시 외부 브라우저(Safari/Chrome) 강제 호출 로직 적용
-   */
   const handleLogin = async () => {
-    const userAgent = navigator.userAgent.toLowerCase();
-    const isInApp = /kakaotalk|naver|line|daum|instagram|fban|fbav/.test(userAgent);
-
-    if (isInApp) {
-      const currentUrl = window.location.href;
-
-      // iOS → Safari 열기
-      if (/iphone|ipad|ipod/.test(userAgent)) {
-        window.location.href = `x-web-search://?${currentUrl}`;
-        return;
-      }
-
-      // Android → Chrome 열기
-      if (/android/.test(userAgent)) {
-        window.location.href =
-          `intent://${currentUrl.replace(/^https?:\/\//, "")}#Intent;scheme=https;package=com.android.chrome;end`;
-        return;
-      }
-
-      alert("외부 브라우저에서 다시 열어주세요.");
-      return;
-    }
-
-    // 정상 브라우저 로그인 실행
     await socialLogin();
   };
 
@@ -602,7 +651,16 @@ export default function Home() {
           .responsive-table-cell-amount { width: 75px !important; }
         }
       `}</style>
-      <TopNav user={user} userTier={userTier} handleLogin={handleLogin} handleLogout={handleLogout} theme={theme} />
+      {/* 🚀 TopNav 구조 유지 */}
+      <TopNav 
+        user={user} 
+        userTier={userTier} 
+        handleLogin={handleLogin} 
+        handleLogout={handleLogout} 
+        theme={theme} 
+        isInApp={isInApp}
+        openExternalBrowser={openExternalBrowser}
+      />
       <ProMembershipBanner userTier={userTier} theme={theme} />
       <div className="responsive-layout" style={{ fontFamily: '-apple-system, sans-serif', padding: '10px', boxSizing: 'border-box', width: '100%', maxWidth: '1200px', margin: '0 auto', minWidth: 0 }}>
         <div className="grid-controls" style={{ width: '100%', maxWidth: '100%', minWidth: 0, boxSizing: 'border-box' }}>
