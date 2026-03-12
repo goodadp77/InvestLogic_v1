@@ -5,19 +5,16 @@ import {
   GoogleAuthProvider, 
   signInWithPopup, 
   signInWithRedirect, 
-  getRedirectResult,
-  setPersistence,
-  browserLocalPersistence
+  getRedirectResult 
 } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
 
 const firebaseConfig = {
   apiKey: process.env.NEXT_PUBLIC_FIREBASE_API_KEY,
   /**
-   * 🚀 유지 사항: authDomain은 파이어베이스 기본 도메인을 사용합니다.
-   * 이미 '승인된 도메인'에 Vercel 주소가 등록되어 있으므로 변경하지 않습니다.
+   * 🚀 핵심: 도메인 일치 작업 (vercel.json의 rewrite와 세트)
    */
-  authDomain: "nasdaq-tamagotchi.firebaseapp.com", 
+  authDomain: "investlogicv1.vercel.app", 
   projectId: "nasdaq-tamagotchi", 
   storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
   messagingSenderId: process.env.NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,
@@ -35,32 +32,23 @@ provider.setCustomParameters({ prompt: 'select_account' });
 export const db = getFirestore(app);
 
 /**
- * 🚀 로그인 복구 지침 반영: 진짜 인앱 브라우저만 리다이렉트 사용
- * 일반 모바일 브라우저는 팝업 방식을 사용하여 로그인 성공률을 높입니다.
+ * 🚀 고도화된 하이브리드 로그인 함수
+ * 인앱 브라우저(네이버, 카카오 등)와 일반 브라우저를 정밀하게 구분합니다.
  */
 export const socialLogin = async () => {
   const userAgent = navigator.userAgent.toLowerCase();
   
-  // 1. 진짜 인앱 브라우저(카톡, 네이버, 라인, 인스타, 페북 등)만 정밀 감지
-  const isInApp = 
-    userAgent.includes("kakaotalk") || 
-    userAgent.includes("naver") || 
-    userAgent.includes("line") || 
-    userAgent.includes("daum") || 
-    userAgent.includes("instagram") || 
-    userAgent.includes("fban") || 
-    userAgent.includes("fbav");
+  // 1. 인앱 브라우저 및 모바일 환경 정밀 감지
+  const isInApp = /naver|kakaotalk|line|daum|iphone|ipad|ipod|android/.test(userAgent);
+  const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
 
   try {
-    // 2. 판별 결과에 따른 로그인 방식 분기
-    if (isInApp) {
-      console.log("진짜 인앱 환경 감지: 리다이렉트 로그인 실행");
-      // 🚀 인앱 redirect session 오류 해결을 위해 persistence 설정 명시적 추가
-      await setPersistence(auth, browserLocalPersistence);
+    // 2. 인앱 브라우저이거나 모바일인 경우 무조건 리다이렉트 방식 사용
+    if (isInApp || isMobile) {
+      console.log("인앱/모바일 환경 감지: 리다이렉트 로그인 실행");
       await signInWithRedirect(auth, provider);
     } else {
-      // 3. 일반 모바일 브라우저(크롬, 사파리, 삼성인터넷) 및 데스크톱은 팝업 사용
-      console.log("일반 브라우저 환경: 팝업 로그인 실행");
+      // 3. 데스크톱 환경은 사용자 편의를 위해 팝업 방식 사용
       await signInWithPopup(auth, provider);
     }
   } catch (error) {
@@ -69,8 +57,6 @@ export const socialLogin = async () => {
     // 구글 정책상 인앱 브라우저 차단 시 대응
     if (error.code === 'auth/disallowed-useragent') {
       alert("이 브라우저에서는 구글 로그인이 제한됩니다.\n\n오른쪽 상단 메뉴(⋮ 또는 ···)를 눌러\n'기본 브라우저로 열기' 또는 'Safari로 열기'를 선택해 주세요.");
-    } else if (error.code === 'auth/popup-blocked') {
-      alert("팝업이 차단되었습니다. 브라우저 설정에서 팝업 차단을 해제해 주세요.");
     } else {
       alert("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     }
