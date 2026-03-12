@@ -33,28 +33,35 @@ provider.setCustomParameters({ prompt: 'select_account' });
 export const db = getFirestore(app);
 
 /**
- * 🚀 일반 로그인 함수
- * InAppHandler가 이미 인앱 사용자를 외부 브라우저(Safari/Chrome)로 튕겨냈으므로
- * 여기서는 표준적인 팝업/리다이렉트 로직만 수행하면 됩니다.
+ * 🚀 구글 로그인 정상화 함수
+ * InAppHandler가 이미 사용자를 외부 브라우저로 이동시켰으므로,
+ * 세션 유실 방지를 위해 signInWithPopup을 우선적으로 사용합니다.
  */
 export const socialLogin = async () => {
-  const userAgent = navigator.userAgent.toLowerCase();
-  const isMobile = /iphone|ipad|ipod|android/.test(userAgent);
-
   try {
-    // 모바일 환경은 리다이렉트, 데스크톱은 팝업 사용 (표준 정책)
-    if (isMobile) {
-      console.log("모바일 환경: 리다이렉트 로그인 실행");
-      await signInWithRedirect(auth, provider);
-    } else {
-      console.log("데스크톱 환경: 팝업 로그인 실행");
-      await signInWithPopup(auth, provider);
-    }
-  } catch (error) {
-    console.error("Firebase Login Error:", error);
+    // 🚀 [최종 지침 반영] 외부 브라우저에서는 팝업 로그인을 최우선 시도
+    // 모바일/데스크톱 구분 없이 팝업을 먼저 띄워 세션 끊김을 방지합니다.
+    console.log("구글 팝업 로그인 시도...");
+    const result = await signInWithPopup(auth, provider);
+    console.log("로그인 성공:", result.user);
     
+  } catch (error) {
+    console.error("Firebase Login Error (Popup):", error);
+    
+    // 구글 정책상 인앱 브라우저 차단 시 대응
     if (error.code === 'auth/disallowed-useragent') {
       alert("이 브라우저에서는 구글 로그인이 제한됩니다.\n\n오른쪽 상단 메뉴(⋮ 또는 ···)를 눌러\n'기본 브라우저로 열기' 또는 'Safari로 열기'를 선택해 주세요.");
+      return;
+    }
+
+    // 팝업이 차단되었거나 실패한 경우 리다이렉트 방식으로 백업 실행
+    if (error.code === 'auth/popup-blocked' || error.code === 'auth/cancelled-popup-request') {
+      console.log("팝업 차단 감지: 리다이렉트 방식으로 전환합니다.");
+      try {
+        await signInWithRedirect(auth, provider);
+      } catch (redirectError) {
+        console.error("Redirect 로그인 에러:", redirectError);
+      }
     } else {
       alert("로그인 중 오류가 발생했습니다. 잠시 후 다시 시도해 주세요.");
     }
